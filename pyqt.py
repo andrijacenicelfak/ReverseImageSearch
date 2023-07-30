@@ -76,7 +76,7 @@ class ReverseImageSearch(QMainWindow):
 
     def open_photo_dialog(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Photo", "", "Images (*.png *.jpg *.jpeg *.webm)", options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Photo", "", "Images (*.png *.jpg *.jpeg *.webp)", options=options)
         if file_path:
             self.selected_photo_path = file_path
             self.display_photo()
