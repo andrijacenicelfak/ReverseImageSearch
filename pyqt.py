@@ -1,6 +1,7 @@
+from queue import Queue
 import sys, time, cv2,threading, numpy as np
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QFileDialog, QVBoxLayout, QListWidget, QListWidgetItem, QWidget,QHBoxLayout, QScrollArea
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QFileDialog, QVBoxLayout, QListWidget, QListWidgetItem, QWidget,QHBoxLayout, QScrollArea,QStyleFactory
 from PyQt5.QtGui import QPixmap, QIcon,QDesktopServices
 from PyQt5.QtCore import Qt,QUrl
 
@@ -13,6 +14,7 @@ class DisplayStruct:
     def __init__(self,image_path,accuracy):
         self.image_path=image_path
         self.accuracy=accuracy
+        # self.tags=[]
 
 class DisplayList:
     def __init__(self):
@@ -33,10 +35,11 @@ class ReverseImageSearch(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.imageDB = ImageDB()
-        self.ia = ImageAnalyzation("yolov8s.pt", "cpu")
+        self.image_db = ImageDB()
+        self.img_analysis = ImageAnalyzation("yolov8s.pt", "cuda")
         self.selected_folder_path = "C:\\Users\\mdsp\\Pictures\\"
         self.selected_photo_path = None
+        self.queue=Queue(maxsize=0)
 
     def initUI(self):
         self.setWindowTitle("Reverse Image Search")
@@ -80,15 +83,19 @@ class ReverseImageSearch(QMainWindow):
         if file_path:
             self.selected_photo_path = file_path
             self.display_photo()
-            self.display_search_results()
+            self.select_photo_button.setEnabled(False)
+            handle=threading.Thread(target=self.display_search_results,args=(self.selected_photo_path,))
+            handle.start()
+            # self.display_search_results()
 
     def open_folder_dialog(self):
         options = QFileDialog.Options()
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "", options=options)
         if folder_path:
             self.selected_folder_path = folder_path
-            # threading.Thread(target=self.index_path,args=(self.selected_folder_path,self.imageDB)).start() #TODO: concurrentqueue/stack
-            self.index_path(folder_path)
+            self.select_folder_button.setEnabled(False)
+            handle=threading.Thread(target=self.index_path,args=(self.selected_folder_path,)) #TODO: concurrentqueue/stack
+            handle.start()
     
     def display_photo(self):
         pixmap = QPixmap(self.selected_photo_path)
@@ -99,10 +106,10 @@ class ReverseImageSearch(QMainWindow):
         if path_to_image:
             QDesktopServices.openUrl(QUrl.fromLocalFile(path_to_image))
 
-    def display_search_results(self):
+    def display_search_results(self,selected_photo_path):
         self.search_results_list.clear()
         if self.selected_photo_path:
-            search_results = self.get_search_results()
+            search_results = self.get_search_results(selected_photo_path)
             search_results.sort()
             for result in search_results:
                 pixmap = QPixmap(result.image_path)
@@ -110,29 +117,34 @@ class ReverseImageSearch(QMainWindow):
                 item = QListWidgetItem(QIcon(icon), f"Accuracy: {result.accuracy}%")
                 item.setData(Qt.UserRole, result.image_path)
                 self.search_results_list.addItem(item)
-    
+            self.select_photo_button.setEnabled(True)
     def index_path(self,path):
+        img_db=ImageDB()
+        img_analysis=ImageAnalyzation("yolov8s.pt", "cuda")
         start_time=time.time()
         orb=cv2.ORB_create()
         i=0
         for (img_name, image) in read_images_from_dir(path):
-            data = (self.ia.getImageData(image))#TODO: napravi u iterator pa preko yield lol
+            data = (img_analysis.getImageData(image))#TODO: napravi u iterator pa preko yield lol
             for d in data:
                 box = image[d[1][1]:d[1][3], d[1][0]:d[1][2]]#TODO: napravi da lepo radi sa koleginim structom D:D
                 _, desc = orb.detectAndCompute(box, None)
-                self.imageDB.addImage(DBStruct(d[0],img_name,desc))
+                img_db.addImage(DBStruct(d[0],img_name,desc))
                 i+=1
         end_time=time.time()-start_time
         print(f"Images Indexed:{i} in {end_time/60} minutes")
+        self.select_folder_button.setEnabled(True)
     
-    def get_search_results(self,):
+    def get_search_results(self,img_path):
         orb=cv2.ORB_create()
-        img=cv2.imread(self.selected_photo_path,cv2.COLOR_BGR2GRAY)#izabrana slika
-        terms=self.ia.getImageData(img)#('kuce',koordinate na slici)
+        img_analysis=ImageAnalyzation("yolov8s.pt", "cuda")
+        img_db=ImageDB()
+        img=cv2.imread(img_path,cv2.COLOR_BGR2GRAY)#izabrana slika
+        terms=img_analysis.getImageData(img)#('kuce',koordinate na slici)
         display_list=DisplayList()
         matcher=cv2.BFMatcher(cv2.NORM_HAMMING,crossCheck=True)
         for term in terms:
-            structs=self.imageDB.searchImageByTerm(term[0])
+            structs=img_db.searchImageByTerm(term[0])
             detected_object=img[term[1][1]:term[1][3], term[1][0]:term[1][2]]
             _,descriptor=orb.detectAndCompute(detected_object,None)
             for struct in structs:
@@ -140,7 +152,7 @@ class ReverseImageSearch(QMainWindow):
                     break
                 matches=matcher.match(descriptor.astype(np.uint8),struct.descriptor.astype(np.uint8))
                 accuracy=(len(matches)/len(descriptor))*100
-                if accuracy>15:
+                if accuracy>19.0:
                     result=display_list.contains(struct.path_to_image)
                     if result is None:
                         display_list.append(DisplayStruct(struct.path_to_image,accuracy))
@@ -150,9 +162,15 @@ class ReverseImageSearch(QMainWindow):
                         #TODO: resi ovo, realno je glupo...
             #isecem deo moje slike da poredim sa deskriptorima koje dobijam iz iste klase
         return display_list
+    
+    def producer(self):
+        pass
+    def consumer(self):
+        pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyle('Windows')
     window = ReverseImageSearch()
     window.show()
     sys.exit(app.exec_())

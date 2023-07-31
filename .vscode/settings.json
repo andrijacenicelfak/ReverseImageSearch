@@ -2,5 +2,9 @@
     "python.analysis.extraPaths": [
         "./CLASSIFICATION",
         "./DB"
-    ]
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "python.formatting.provider": "none"
 }
