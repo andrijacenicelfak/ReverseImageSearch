@@ -4,10 +4,9 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QFil
 from PyQt5.QtGui import QPixmap, QIcon,QDesktopServices
 from PyQt5.QtCore import Qt,QUrl
 
-from ImageAnalyzation import ImageAnalyzation
+from PROCESSING.ImageAnalyzation import ImageAnalyzation
 from index import read_images_from_dir
 from sqliteDB import ImageDB,DBStruct
-
 
 class DisplayStruct:
     def __init__(self,image_path,accuracy):
@@ -150,14 +149,13 @@ class ReverseImageSearch(QMainWindow):
         img_db=ImageDB()
         img=cv2.imread(img_path,cv2.COLOR_BGR2GRAY)#izabrana slika
         
-        terms=img_analysis.getImageData(img)#('kuce',koordinate na slici)
+        terms=img_analysis.getImageData(img,classesData=True,objectsFeatures=True)#('kuce',koordinate na slici)
         display_list=DisplayList()
         matcher=cv2.BFMatcher(cv2.NORM_HAMMING,crossCheck=True)
         
-        for term in terms:
+        for term in terms.classes:
             structs=img_db.searchImageByTerm(term[0])
             detected_object=img[term[1][1]:term[1][3], term[1][0]:term[1][2]]
-            _,descriptor=orb.detectAndCompute(detected_object,None)
             for struct in structs:
                 if descriptor is None or struct.descriptor is None:
                     break
@@ -174,6 +172,9 @@ class ReverseImageSearch(QMainWindow):
             #isecem deo moje slike da poredim sa deskriptorima koje dobijam iz iste klase
         return display_list
 
+    def get_search_results2(self,img_path):
+       pass 
+    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
