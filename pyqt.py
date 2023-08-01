@@ -1,4 +1,3 @@
-from queue import Queue
 import sys, time, cv2,threading, numpy as np
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QFileDialog, QVBoxLayout, QListWidget, QListWidgetItem, QWidget,QHBoxLayout, QScrollArea,QStyleFactory
@@ -14,7 +13,6 @@ class DisplayStruct:
     def __init__(self,image_path,accuracy):
         self.image_path=image_path
         self.accuracy=accuracy
-        # self.tags=[]
 
 class DisplayList:
     def __init__(self):
@@ -35,11 +33,8 @@ class ReverseImageSearch(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.image_db = ImageDB()
-        self.img_analysis = ImageAnalyzation("yolov8s.pt", "cuda")
-        self.selected_folder_path = "C:\\Users\\mdsp\\Pictures\\"
+        self.selected_folder_path = None
         self.selected_photo_path = None
-        self.queue=Queue(maxsize=0)
 
     def initUI(self):
         self.setWindowTitle("Reverse Image Search")
@@ -47,26 +42,15 @@ class ReverseImageSearch(QMainWindow):
         
         main_layout = QVBoxLayout()
 
-        self.photo_label = QLabel(self)
-        self.photo_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(self.photo_label)
+        self.selected_photo(main_layout)
 
-        self.search_results_list = QListWidget(self)
-        self.search_results_list.setIconSize(QPixmap(150, 150).size())
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(self.search_results_list)
-        main_layout.addWidget(scroll_area)
+        self.display_results(main_layout)
 
-        self.select_photo_button = QPushButton("Select Photo", self)
-        self.select_photo_button.clicked.connect(self.open_photo_dialog)
+        self.btn_select_photo()
 
-        self.select_folder_button = QPushButton("Select Folder To Index", self)
-        self.select_folder_button.clicked.connect(self.open_folder_dialog)
+        self.btn_select_folder()
 
-        buttons_layout = QHBoxLayout()
-        buttons_layout.addWidget(self.select_photo_button)
-        buttons_layout.addWidget(self.select_folder_button)
+        buttons_layout = self.add_buttons()
 
         main_layout.addLayout(buttons_layout)
 
@@ -74,8 +58,34 @@ class ReverseImageSearch(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
+
+    def add_buttons(self):
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.select_photo_button)
+        buttons_layout.addWidget(self.select_folder_button)
+        return buttons_layout
+
+    def display_results(self, main_layout):
+        self.search_results_list = QListWidget(self)
+        self.search_results_list.setIconSize(QPixmap(200,200).size())
         self.search_results_list.itemClicked.connect(self.open_image_from_search_result)
-        self.selected_photo_path = ""
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(self.search_results_list)
+        main_layout.addWidget(scroll_area)
+
+    def selected_photo(self, main_layout):
+        self.photo_label = QLabel(self)
+        self.photo_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.photo_label)
+
+    def btn_select_folder(self):
+        self.select_folder_button = QPushButton("Select Folder To Index", self)
+        self.select_folder_button.clicked.connect(self.open_folder_dialog)
+
+    def btn_select_photo(self):
+        self.select_photo_button = QPushButton("Select Photo", self)
+        self.select_photo_button.clicked.connect(self.open_photo_dialog)
 
     def open_photo_dialog(self):
         options = QFileDialog.Options()
@@ -86,7 +96,6 @@ class ReverseImageSearch(QMainWindow):
             self.select_photo_button.setEnabled(False)
             handle=threading.Thread(target=self.display_search_results,args=(self.selected_photo_path,))
             handle.start()
-            # self.display_search_results()
 
     def open_folder_dialog(self):
         options = QFileDialog.Options()
@@ -114,7 +123,7 @@ class ReverseImageSearch(QMainWindow):
             for result in search_results:
                 pixmap = QPixmap(result.image_path)
                 icon = pixmap.scaled(100, 100, Qt.KeepAspectRatio)
-                item = QListWidgetItem(QIcon(icon), f"Accuracy: {result.accuracy}%")
+                item = QListWidgetItem(QIcon(icon), f"Accuracy: {round(result.accuracy,2)}%")
                 item.setData(Qt.UserRole, result.image_path)
                 self.search_results_list.addItem(item)
             self.select_photo_button.setEnabled(True)
@@ -140,9 +149,11 @@ class ReverseImageSearch(QMainWindow):
         img_analysis=ImageAnalyzation("yolov8s.pt", "cuda")
         img_db=ImageDB()
         img=cv2.imread(img_path,cv2.COLOR_BGR2GRAY)#izabrana slika
+        
         terms=img_analysis.getImageData(img)#('kuce',koordinate na slici)
         display_list=DisplayList()
         matcher=cv2.BFMatcher(cv2.NORM_HAMMING,crossCheck=True)
+        
         for term in terms:
             structs=img_db.searchImageByTerm(term[0])
             detected_object=img[term[1][1]:term[1][3], term[1][0]:term[1][2]]
@@ -162,15 +173,10 @@ class ReverseImageSearch(QMainWindow):
                         #TODO: resi ovo, realno je glupo...
             #isecem deo moje slike da poredim sa deskriptorima koje dobijam iz iste klase
         return display_list
-    
-    def producer(self):
-        pass
-    def consumer(self):
-        pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle('Windows')
+    app.setStyle('Fusion')
     window = ReverseImageSearch()
     window.show()
     sys.exit(app.exec_())
