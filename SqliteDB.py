@@ -9,7 +9,11 @@ class DBStruct:
         self.descriptor = descriptor
 
 class ImageDB:
-    def __init__(self) -> None:
+    def __init__(self):
+        print()    
+    def open_connection(self):
+        self.con = sqlite3.connect("test2.db")
+        self.cursor = self.con.cursor()
         try:
             self.con = sqlite3.connect("test2.db")
             self.cursor = self.con.cursor()
@@ -40,11 +44,6 @@ class ImageDB:
             self.con.commit()
         except sqlite3.Error as e:
             print(f'Error occurred: {e}')
-
-    def closeDB(self):
-        self.cursor.close()
-        self.con.close()
-
     def addImage(self,dbstruct:DBStruct):
         try:
             self.cursor.execute("SELECT * FROM terms WHERE term = ?", (dbstruct.term,))

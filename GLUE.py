@@ -1,4 +1,5 @@
 import sys
+import threading
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -19,12 +20,14 @@ from PyQt5.QtGui import (
     QPixmap,   
 )
 class GUI(QMainWindow):
-    def __init__(self):
+    def __init__(self,img_db,img_proc):
         super().__init__()
         self.initUI()
         self.show()
         self.selected_photo_path=None
         self.selected_folder_path=""
+        self.img_db=img_db
+        self.img_process=img_proc
         
     def initUI(self):
         self.setWindowTitle("Light")
@@ -39,6 +42,7 @@ class GUI(QMainWindow):
         self.buttons_layout=QHBoxLayout()
         
         self.buttons_layout.addWidget(self.btn_select_photo())
+        self.buttons_layout.addWidget(self.btn_select_folder())
         
         main_layout.addLayout(self.buttons_layout)
         
@@ -46,6 +50,20 @@ class GUI(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
         
+    def open_folder_dialog(self):
+        options = QFileDialog.Options()
+        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "", options=options)
+        if folder_path:
+            self.selected_folder_path = folder_path
+            # self.select_folder_button.setEnabled(False)
+            # otvori novi thread koji indeksira I na kraju enabluje button
+            print(f"Indexed folder:{folder_path}")
+    
+    def btn_select_folder(self):
+        self.btn_folder=QPushButton("Select Folder To Index", self)
+        self.btn_folder.clicked.connect(self.open_folder_dialog)
+        return self.btn_folder
+    
     def display_selected_photo(self):
         pixmap = QPixmap(self.selected_photo_path)
         self.photo_label.setPixmap(pixmap.scaled(400, 400, Qt.KeepAspectRatio))
@@ -75,14 +93,8 @@ class GUI(QMainWindow):
         
     def open_photo_dialog(self):
         options=QFileDialog.Options()
-        path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png)", options=options)
-        if path:
-            self.selected_photo_path=path
+        photo_path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png)", options=options)
+        if photo_path:
+            self.selected_photo_path=photo_path
             self.display_selected_photo()
-        
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyle('Fusion')
-    window = GUI()
-    window.show()
-    sys.exit(app.exec_())
+            print(f"Opened photo:{photo_path}")
