@@ -2,6 +2,7 @@ import sys
 import threading
 from FileExplorer import FileExplorer
 from time import sleep
+import cv2
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -21,6 +22,7 @@ from PyQt5.QtCore import (
 from PyQt5.QtGui import (
     QPixmap,   
 )
+from ImageAnalyzation import ImageClassificationData
 
 from SqliteDB import DBStruct, ImageDB
 class GUI(QMainWindow):
@@ -118,12 +120,20 @@ class GUI(QMainWindow):
             self.selected_photo_path=photo_path
             self.display_selected_photo()
             self.btn_photo.setEnabled(False)
-            handle=threading.Thread(target=self.display_results,args=(photo_path,))
+            handle=threading.Thread(target=self.display_results,args=(photo_path,self.img_db))
             handle.start()
-    def display_results(self,photo_path):
+    def display_results(self,photo_path,img_db:ImageDB):
+        image_data = self.img_process.getImageData(cv2.imread(photo_path), True, False, True)
+        img_db.open_connection()
+        for obj in image_data.classes:
+            imgs = img_db.searchImageByTerm(obj.className)#sve slike sa tom odrednjemo klasom
+            for img in imgs: 
+                x = self.img_process.compareImageClassificationData(ImageClassificationData(img.term, None, img.descriptor), ImageClassificationData(obj.className, None, obj.features), None, None, False, False)
+                print(f" path to image: {img.path_to_image} similarity:{x}")
+                
         #iskoristi andrijino za detekciju i poredjivanje
         #vrati rezultate i accuracy za svaki rezultat u batchevima
         #displayuj u batchevima
-        sleep(10)
+        img_db.close()
         self.btn_photo.setEnabled(True)
         pass
