@@ -4,7 +4,6 @@ from FileExplorer import FileExplorer
 from time import sleep
 import cv2
 from PyQt5.QtWidgets import (
-    QApplication,
     QMainWindow,
     QVBoxLayout,
     QLabel,
@@ -12,15 +11,18 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QFileDialog,
     QWidget,
+    QListWidgetItem,
     QListWidget,
     QScrollArea,
     )
 from PyQt5.QtCore import (
     Qt,
-    QUrl
+    QUrl,
 )
 from PyQt5.QtGui import (
-    QPixmap,   
+    QPixmap,
+    QDesktopServices,   
+    QIcon,
 )
 from ImageAnalyzation import ImageClassificationData
 
@@ -68,6 +70,7 @@ class GUI(QMainWindow):
                     img_db.addImage(DBStruct(obj.className, img_path, obj.features))
         
         img_db.close()  
+        self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
         
     
@@ -77,6 +80,7 @@ class GUI(QMainWindow):
         if folder_path:
             self.selected_folder_path= folder_path
             self.btn_folder.setEnabled(False)
+            self.setCursor(Qt.WaitCursor)
             handle=threading.Thread(target=self.index_folder,args=(folder_path,self.img_db))
             handle.start()
             print(f"Indexed folder:{folder_path}")
@@ -90,18 +94,15 @@ class GUI(QMainWindow):
         pixmap = QPixmap(self.selected_photo_path)
         self.photo_label.setPixmap(pixmap.scaled(400, 400, Qt.KeepAspectRatio))
     
-    def open_image_from_search_result(self):
-        pixmap = QPixmap(self.selected_photo_path)
-        self.photo_label.setPixmap(pixmap.scaled(400, 400, Qt.KeepAspectRatio))
-    
     def search_results(self,main_layout):
         self.search_results_list = QListWidget(self)
         self.search_results_list.setIconSize(QPixmap(200,200).size())
-        self.search_results_list.itemClicked.connect(self.open_image_from_search_result)
+        self.search_results_list.itemClicked.connect(self.open_selected_image)
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(self.search_results_list)
         main_layout.addWidget(scroll_area)
+
     
     def selected_photo(self,main_layout):
         self.photo_label=QLabel(self)
@@ -118,6 +119,7 @@ class GUI(QMainWindow):
         photo_path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png)", options=options)
         if photo_path:
             self.selected_photo_path=photo_path
+            self.setCursor(Qt.WaitCursor)
             self.display_selected_photo()
             self.btn_photo.setEnabled(False)
             handle=threading.Thread(target=self.display_results,args=(photo_path,self.img_db))
@@ -130,10 +132,20 @@ class GUI(QMainWindow):
             for img in imgs: 
                 x = self.img_process.compareImageClassificationData(ImageClassificationData(img.term, None, img.descriptor), ImageClassificationData(obj.className, None, obj.features), None, None, False, False)
                 print(f" path to image: {img.path_to_image} similarity:{x}")
-                
-        #iskoristi andrijino za detekciju i poredjivanje
-        #vrati rezultate i accuracy za svaki rezultat u batchevima
-        #displayuj u batchevima
+                #TODO: dodaj da se sortira po x
+                self.add_image_to_grid(img.path_to_image)
+        self.setCursor(Qt.ArrowCursor)
         img_db.close()
+        
         self.btn_photo.setEnabled(True)
-        pass
+    def add_image_to_grid(self, image_path):
+        pixmap = QPixmap(image_path)
+        icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        item = QListWidgetItem(QIcon(icon), "")
+        item.setData(Qt.UserRole, image_path)
+        self.search_results_list.addItem(item)
+    
+    def open_selected_image(self, item):
+        image_path = item.data(Qt.UserRole)
+        if image_path:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(image_path))
