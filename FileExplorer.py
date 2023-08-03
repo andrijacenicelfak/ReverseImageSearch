@@ -1,5 +1,5 @@
 import os
-
+import cv2
 class FileExplorer:
     def __init__(self, startDirectory):
         self.startDirectory = startDirectory
@@ -18,6 +18,29 @@ class FileExplorer:
         self.images = images
         self.saveImages(images)
         return images
+    
+    def search2(self):
+        file_list = os.listdir(self.startDirectory )
+        yield_this=[]
+        counter=0
+    
+        for file_name in file_list:
+            if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                self.startDirectory = os.path.normpath(self.startDirectory)
+                image_path = os.path.join(self.startDirectory , file_name)
+                image = cv2.imread(image_path)       
+                if image is not None:
+                    yield_this.append((image_path,image))
+                    counter+=1
+                else:
+                    print(f"Unable to read image: {file_name}")
+                if counter==100:
+                    counter=0
+                    yield yield_this
+                    yield_this.clear()
+
+        yield yield_this
+        
     #?? same shit koa i dole
     def getLastSearch(self) -> list[str]:
         return self.images
@@ -45,3 +68,4 @@ class FileExplorer:
             for i in f:
                 self.images.append(i[:-1])
         return
+    

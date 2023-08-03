@@ -1,5 +1,6 @@
 import sys
 import threading
+from FileExplorer import FileExplorer
 from time import sleep
 from PyQt5.QtWidgets import (
     QApplication,
@@ -20,6 +21,8 @@ from PyQt5.QtCore import (
 from PyQt5.QtGui import (
     QPixmap,   
 )
+
+from SqliteDB import DBStruct, ImageDB
 class GUI(QMainWindow):
     def __init__(self,img_db,img_proc):
         super().__init__()
@@ -51,16 +54,19 @@ class GUI(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
     
-    def index_folder(self,path,img_db):
-        sleep(10)
-        #odi do path-a
-        #konekcija sa bazom
-        #labela
-        #ucitavaj po batch slika
-        #izvuci klasifikacije i deskriptore
-        #upisi u bazu
-        #jmp labela
-        #enableuj button
+
+    def index_folder(self,path,img_db:ImageDB):
+        print("Hello, orlDW!") #DO NOT DELETE EVERYTHING BREAKS WITHOUT THIS PRINT
+        file_exp = FileExplorer(path)
+        img_db.open_connection()
+        for batch in file_exp.search2():
+            for (img_path, image) in batch:
+                image_data = self.img_process.getImageData(image, True, False, True)
+                for klas in image_data.classes:
+                    print(klas.features)
+                    img_db.addImage(DBStruct(klas.className, img_path, klas.features))
+        
+        img_db.close()  
         self.btn_folder.setEnabled(True)
         pass
     
