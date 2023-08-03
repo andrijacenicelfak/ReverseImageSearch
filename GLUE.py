@@ -62,13 +62,12 @@ class GUI(QMainWindow):
         for batch in file_exp.search2():
             for (img_path, image) in batch:
                 image_data = self.img_process.getImageData(image, True, False, True)
-                for klas in image_data.classes:
-                    print(klas.features)
-                    img_db.addImage(DBStruct(klas.className, img_path, klas.features))
+                for obj in image_data.classes:
+                    img_db.addImage(DBStruct(obj.className, img_path, obj.features))
         
         img_db.close()  
         self.btn_folder.setEnabled(True)
-        pass
+        
     
     def open_folder_dialog(self):
         options = QFileDialog.Options()
