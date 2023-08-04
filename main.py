@@ -13,3 +13,4 @@ app = QApplication(sys.argv)
 window = GUI(img_db,img_analyzer)
 window.show()
 sys.exit(app.exec_())
+#TODO: slika thumbnail

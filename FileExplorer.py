@@ -20,7 +20,7 @@ class FileExplorer:
     #     return images
     
     def search2(self):
-        file_list = os.listdir(self.startDirectory )
+        file_list = os.listdir(self.startDirectory)
         yield_this=[]
         counter=0
     

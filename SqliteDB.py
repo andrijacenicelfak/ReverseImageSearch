@@ -1,5 +1,6 @@
 import sqlite3
 import pickle
+import time
 import cv2
 
 from ImageAnalyzation import ImageClassificationData, ImageData
@@ -97,6 +98,7 @@ class ImageDB:
             """, (termName,))
 
             #row[0] obj_id, img_id, obj_features, img_id, img_path, img_feautres
+            start=time.time()
             rows = self.cursor.fetchall()#one
             image_objects  = dict()
             for row in rows:
@@ -104,13 +106,13 @@ class ImageDB:
                 if img_id not in image_objects:
                     image_objects[img_id] = []
                 
-                image_objects[img_id].append(ImageClassificationData(termName, None, row[2]))
-            
+                image_objects[img_id].append(ImageClassificationData(termName, None, pickle.loads(row[2])))
+            print(time.time()-start)
             results: list[ImageData] = []
             for img_id in image_objects.keys():
                 self.cursor.execute("SELECT i.* FROM images i WHERE i.id = ?", (img_id,))
                 image = self.cursor.fetchone()
-                results.append(ImageData(image[1], image_objects[img_id], image[2]))
+                results.append(ImageData(image[1], image_objects[img_id], pickle.loads(image[2])))
             return results#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
             
     def close(self):
