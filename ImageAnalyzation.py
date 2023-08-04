@@ -1,11 +1,13 @@
+from enum import Enum
+import cv2
 from ultralytics import YOLO
 import numpy as np
 import torch
-import cv2
 from ultralytics.nn.modules import Detect
 from ultralytics.utils.tal import dist2bbox, make_anchors
 import json
 from scipy.spatial.distance import cosine
+import os
 
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
 # The functionality remains the same; it just adds the final part.
@@ -67,51 +69,65 @@ class ImageData:
         self.classes = classes
         self.features = features
         self.orgImage = orgImage
-
+class AnalyzationType(Enum):
+    FullVector = 0
+    BMM = 1
+    Avg = 2
+    Cut = 3
 class ImageAnalyzation:
-
-    def __init__(self, model : str, device : str = "cuda"):
+    typeDict = {AnalyzationType.FullVector : None, AnalyzationType.BMM : "bmm", AnalyzationType.Avg : "avg", AnalyzationType.Cut : "2048"}
+    def __init__(self, model : str, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.Cut):
         self.model = YOLO(model)
         self.model.to(device)
         self.modelNames = self.model.names
+        self.modelName = model
         self.vlist = None
-        with open("vector.json", "r") as f:
-            self.vlist = json.load(fp=f)
+        self.wholeVector = False
+        if type != 0:
+            if os.path.exists(model + "-" + self.typeDict[analyzationType] +  ".json"):
+                with open(model + "-" + self.typeDict[analyzationType]  + ".json", "r") as   f:
+                    self.vlist = json.load(fp=f)
+            else:
+                print("There is not vector for that model. You should first generate the model vector. Returninig the whole vector!")
+                self.wholeVector = True
+        else:
+            self.wholeVector = True
         modifyDetectClass()
+        # self.pca : PCA = joblib.load("yolov8s-pca.joblib")
+
     
-    def getObjectClasses(self, image, objectFeatures = False) -> list[ImageClassificationData]:
-        res = self.model.predict(image, verbose=False)
+    def getObjectClasses(self, image, objectFeatures = False, conf = 0.65) -> list[ImageClassificationData]:
+        res = self.model.predict(image, verbose=False, conf=conf)
         data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
         imcdata = [ImageClassificationData(className=d[0], boundingBox=BoundingBox(d[1][0], d[1][1], d[1][2], d[1][3]), features=None) for d in data]
+
         if objectFeatures:
             for d in range(len(imcdata)):
                 imcdata[d].features = self.getFeatureVectorFromBounds(image, imcdata[d].boundingBox)
         return imcdata
     
-    def getFeatureVector(self, image) -> list:
+    def getFeatureVector(self, image, wholeVector = False) -> list:
         self.value = None
         def setValue(x : any):
             self.value = x
         Detect.callback = setValue
         img2 = cv2.resize(image, dsize=(224,224), interpolation=cv2.INTER_LINEAR) #need to scale the image to be the same size, so the output vectors are the same size
         self.model.predict(img2, verbose=False)
-        return self.reduceData(np.array(self.value.cpu()).flatten())
+        return self.reduceData(np.array(self.value.cpu()).flatten(), wholeVector)
     
-    def getFeatureVectorFromBounds(self, image, boundigBox : BoundingBox = None) -> list:
+    def getFeatureVectorFromBounds(self, image, boundigBox : BoundingBox = None, wholeVector = False) -> list:
         image = image[boundigBox.y1 : boundigBox.y2, boundigBox.x1 : boundigBox.x2]
-        return self.getFeatureVector(image)
+        return self.getFeatureVector(image, wholeVector)
     
-    def getImageData(self, image, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False)-> ImageData:
+    def getImageData(self, image, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
         if classesData:
             classes = self.getObjectClasses(image, objectsFeatures)
         if imageFeatures:
-            imgFeatures = self.getFeatureVector(image)
+            imgFeatures = self.getFeatureVector(image, wholeVector)
         return ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
 
-    def reduceData(self, data):
-        return data[self.vlist]
     
     def compareImageHistograms(self, img1, img2):
         if img1 is None or img2 is None:
@@ -122,11 +138,18 @@ class ImageAnalyzation:
         h2 = cv2.normalize(h2, h2).flatten()
         return 1 - cv2.compareHist(h1, h2, cv2.HISTCMP_BHATTACHARYYA)
     
-    #TODO: If required for image compareson think of ways to quatify image differences
-    def compareImages(self, imgData1 : ImageData, imgData2: ImageData, compareWholeImages = False, compareImageObjects = False, compareHistograms = True):
+    #compares the whole images with formula: similarity = objSimilarity * wholeImageSimilarity
+    # objSimilarity = 2 * (sum(max(similarity(x,y)) - avg(nonmax(similarity(x,y))))) / (combinedNumObj + numOfDiffObj)
+    # combinedNumObj is the combined numb of objects in two images
+    # numOfDiffObj is number of classes that appear in on image and not the other and is they do appear number of different number of apperances
+    # wholeImageSimilarity histogram comparison and descriptor comaparison
+    def compareImages(self, imgData1 : ImageData, imgData2: ImageData, compareWholeImages = False, compareImageObjects = False, compareHistograms = True, containAllObjects = False):
         if imgData1.orgImage is None or imgData2.orgImage is None:
             raise Exception("Image data should contain the original image for comparesons")
         
+        # if len(imgData1.classes) == 0 or len(imgData2.classes) == 0:
+        #     compareImageObjects = False
+
         #compare whole images
         wholeImageFactor = 1
         if compareWholeImages:
@@ -142,7 +165,7 @@ class ImageAnalyzation:
 
         #Compare objects in images
         imageObjectsFactor = 1
-        if compareImageObjects:
+        if compareImageObjects and ((containAllObjects and len(imgData1.classes) == len(imgData2.classes)) or not containAllObjects):
             numOfObjects = len(imgData1.classes) + len(imgData2.classes)
             classNames1 = list(map(lambda x : x.className, imgData1.classes))
             classNames2 = list(map(lambda x : x.className, imgData2.classes))
@@ -162,9 +185,9 @@ class ImageAnalyzation:
                     comparisonMax = max(comparisonMax, curr)
                     nonMaxSum = nonMaxSum + curr
                 nonMaxSum = nonMaxSum - comparisonMax
-                comparisonSum = comparisonSum + comparisonMax - (nonMaxSum / len(imgData2.classes))
+                comparisonSum = comparisonSum + comparisonMax - (nonMaxSum / max(len(imgData2.classes), 1)) #max - can have 0 objs, div with 0
 
-            imageObjectsFactor = comparisonSum * 2 / (numOfObjects + numOfDifferentObjects)
+            imageObjectsFactor = comparisonSum * 2 / max(1, numOfObjects + numOfDifferentObjects)
 
         return (wholeImageFactor * imageObjectsFactor)
     
@@ -198,3 +221,47 @@ class ImageAnalyzation:
         dist = cosine(icd1.features, icd2.features) * 1000
 
         return (100 - dist)/100 * histWeight
+
+    def reduceData(self, data, wholeVector = False):
+        return data if wholeVector or self.wholeVector else data[self.vlist]
+    
+    def generateVector(self, imgPaths : list[str], minDist = 1.0e-8):
+        diff = None
+        diffNormalizedLast = None
+        lastData = None
+        for i in range(len(imgPaths)):
+            data = self.getFeatureVector(cv2.imread(imgPaths[i]), wholeVector=True)
+            if diff is None:
+                print("data lenght : " , len(data))
+                diff = np.zeros(len(data))
+            if lastData is not None:
+                diff = diff + np.absolute(lastData - data)
+                diffNormalized = diff / (i+1)
+                if diffNormalizedLast is not None:
+                    dist = cosine(diffNormalizedLast, diffNormalized)
+                    print(dist - minDist)
+                    if minDist > dist:
+                        break
+                diffNormalizedLast = diffNormalized
+            lastData = data
+        #vector of 2048
+        diffIndex = list(zip(diffNormalizedLast, range(len(diffNormalizedLast))))
+        diffIndex.sort(reverse= True, key=lambda x: x[0])
+        diffIndexCut = list(map(lambda x : x[1] ,diffIndex[:2048]))
+        with open(self.modelName + "-2048.json", "w") as f:
+            json.dump(diffIndexCut, fp=f)
+        #vector from avg
+        diffAvg = np.average(diffNormalizedLast)
+        diffAvgIndexes = list(map(lambda y: y[1], filter(lambda x : x[0] > diffAvg ,zip(diffNormalizedLast, range(len(diffNormalizedLast))))))
+        print(len(diffAvgIndexes))
+        with open(self.modelName + "-avg.json", "w") as f:
+            json.dump(diffAvgIndexes, fp=f)
+        #vec between min max
+        diffMin = np.min(diffNormalizedLast)
+        diffMax = np.max(diffNormalizedLast)
+        betweenMinMax = (diffMin + diffMax)/2
+        diffBetweenMMIndexes = list(map(lambda y: y[1], filter(lambda x : x[0] > betweenMinMax ,zip(diffNormalizedLast, range(len(diffNormalizedLast))))))
+        print(len(diffBetweenMMIndexes))
+        with open(self.modelName + "-bmm.json", "w") as f:
+            json.dump(diffBetweenMMIndexes, fp=f)
+        return

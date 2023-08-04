@@ -1,4 +1,3 @@
-import sys
 import threading
 from FileExplorer import FileExplorer
 from time import sleep
@@ -25,6 +24,30 @@ from PyQt5.QtGui import (
     QIcon,
 )
 from ImageAnalyzation import ImageClassificationData
+
+class DisplayStruct:
+    def __init__(self,image_path,accuracy):
+        self.image_path=image_path
+        self.accuracy=accuracy
+
+class DisplayList:
+    def __init__(self):
+        self.list=[]
+    def __iter__(self):
+        return iter(self.list)
+    def append(self,struct):
+        existing_struct = self.contains(struct.image_path)
+        if existing_struct:
+            existing_struct.accuracy = (existing_struct.accuracy + struct.accuracy) / 2
+        else:
+            self.list.append(struct)
+    def contains(self,image_path):
+        for struct in self.list:
+            if struct.image_path==image_path:
+                return struct
+        return None
+    def sort(self):
+        self.list.sort(key=lambda x: x.accuracy, reverse=True)
 
 from SqliteDB import DBStruct, ImageDB
 class GUI(QMainWindow):
@@ -125,24 +148,30 @@ class GUI(QMainWindow):
             handle=threading.Thread(target=self.display_results,args=(photo_path,self.img_db))
             handle.start()
     def display_results(self,photo_path,img_db:ImageDB):
+        img_list=DisplayList()
         image_data = self.img_process.getImageData(cv2.imread(photo_path), True, False, True)
         img_db.open_connection()
         for obj in image_data.classes:
             imgs = img_db.searchImageByTerm(obj.className)#sve slike sa tom odrednjemo klasom
             for img in imgs: 
-                x = self.img_process.compareImageClassificationData(ImageClassificationData(img.term, None, img.descriptor), ImageClassificationData(obj.className, None, obj.features), None, None, False, False)
-                print(f" path to image: {img.path_to_image} similarity:{x}")
-                #TODO: dodaj da se sortira po x
-                self.add_image_to_grid(img.path_to_image)
+                confidence = self.img_process.compareImageClassificationData(ImageClassificationData(img.term, None, img.descriptor), ImageClassificationData(obj.className, None, obj.features), None, None, False, False)
+                img_list.append(DisplayStruct(img.path_to_image,confidence))
+        
+        img_list.sort()
+        for struct in img_list:
+            self.add_image_to_grid(struct.image_path,struct.accuracy)
+        
         self.setCursor(Qt.ArrowCursor)
         img_db.close()
         
         self.btn_photo.setEnabled(True)
-    def add_image_to_grid(self, image_path):
+    def add_image_to_grid(self, image_path,accuracy):
         pixmap = QPixmap(image_path)
         icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        item = QListWidgetItem(QIcon(icon), "")
+        item = QListWidgetItem(QIcon(icon), f"Accuracy: {round(accuracy*100,2)}%")
         item.setData(Qt.UserRole, image_path)
+        accuracy_label = QLabel(f"Accuracy: {accuracy:.2f}")
+        accuracy_label.setAlignment(Qt.AlignCenter)
         self.search_results_list.addItem(item)
     
     def open_selected_image(self, item):
