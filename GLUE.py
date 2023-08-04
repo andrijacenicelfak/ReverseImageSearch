@@ -23,7 +23,7 @@ from PyQt5.QtGui import (
     QDesktopServices,   
     QIcon,
 )
-from ImageAnalyzation import ImageClassificationData
+from ImageAnalyzation import ImageClassificationData, ImageData
 
 class DisplayStruct:
     def __init__(self,image_path,accuracy):
@@ -49,7 +49,7 @@ class DisplayList:
     def sort(self):
         self.list.sort(key=lambda x: x.accuracy, reverse=True)
 
-from SqliteDB import DBStruct, ImageDB
+from SqliteDB import  ImageDB
 class GUI(QMainWindow):
     def __init__(self,img_db,img_proc):
         super().__init__()
@@ -88,10 +88,10 @@ class GUI(QMainWindow):
         img_db.open_connection()
         for batch in file_exp.search2():
             for (img_path, image) in batch:
-                image_data = self.img_process.getImageData(image, True, False, True)
-                for obj in image_data.classes:
-                    img_db.addImage(DBStruct(obj.className, img_path, obj.features))
-        
+                image_data = self.img_process.getImageData(image, True, True, True)
+                image_data.orgImage = img_path
+                img_db.addImage(image_data)
+
         img_db.close()  
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)

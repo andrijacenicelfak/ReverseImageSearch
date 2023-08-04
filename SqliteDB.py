@@ -2,11 +2,18 @@ import sqlite3
 import pickle
 import cv2
 
-class DBStruct:
-    def __init__(self, term=None, path_to_image=None, descriptor=None) -> None:
-        self.term = term
-        self.path_to_image = path_to_image
-        self.descriptor = descriptor
+from ImageAnalyzation import ImageClassificationData, ImageData
+# class DBObjectStruct:
+#     def __init__(self, term, vec):
+#         self.term = term
+#         self.vector = vec
+
+# class DBStruct:
+#     def __init__(self, path, vector, objects:list[DBObjectStruct]) -> None:
+#         #slika
+#         self.path = path
+#         self.vector = vector
+#         self.objects = objects
 
 class ImageDB:
     def __init__(self):
@@ -20,8 +27,9 @@ class ImageDB:
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS objects (
                     id INTEGER PRIMARY KEY,
-                    path TEXT NOT NULL,
-                    desc TEXT NOT NULL
+                    image_id INT,
+                    desc BLOB NOT NULL,
+                    FOREIGN KEY (image_id) REFERENCES images(id)
                 );
             """)
             
@@ -36,47 +44,74 @@ class ImageDB:
                     term_id INT,
                     object_id INT,
                     PRIMARY KEY (term_id, object_id),
-                    FOREIGN KEY (term_id) REFERENCES terms(term_id),
-                    FOREIGN KEY (object_id) REFERENCES objects(object_id)                    
+                    FOREIGN KEY (term_id) REFERENCES terms(id),
+                    FOREIGN KEY (object_id) REFERENCES objects(id)                    
                 );
             """)
-                
-            self.con.commit()
-        except sqlite3.Error as e:
-            print(f'Error occurred: {e}')
-    def addImage(self,dbstruct:DBStruct):
-        try:
-            self.cursor.execute("SELECT * FROM terms WHERE term = ?", (dbstruct.term,))
-            term = self.cursor.fetchone()
-            if term == None:
-                self.cursor.execute(f"""INSERT INTO terms (term) VALUES (?)
-                """, (dbstruct.term,))
-                term_id = self.cursor.lastrowid
-            else:
-                term_id = term[0]
 
-            self.cursor.execute('INSERT INTO objects (path, desc) VALUES (?, ?)', (dbstruct.path_to_image, pickle.dumps(dbstruct.descriptor)))
-            obj_id = self.cursor.lastrowid
-
-            self.cursor.execute('INSERT INTO inverted_index (term_id, object_id) VALUES (?, ?)', (term_id, obj_id))
-            
-            self.con.commit()
-            
-        except sqlite3.Error as e:
-            print(f'Error occurred: {e}')
-
-    def searchImageByTerm(self, termName):
             self.cursor.execute("""
-                SELECT o.*
-                FROM objects o
-                JOIN inverted_index i ON o.id = i.object_id
+                CREATE TABLE IF NOT EXISTS images(
+                    id INTEGER PRIMARY KEY,
+                    path TEXT NOT NULL,
+                    desc BLOB NOT NULL         
+                );
+            """)               
+            self.con.commit()
+        except sqlite3.Error as e:
+            print(f'Error occurred: {e}')
+
+        
+    def addImage(self,dbstruct:ImageData):#orgImage is image but here is path lol
+        try:
+            self.cursor.execute('INSERT INTO images (path, desc) VALUES (?, ?)', (dbstruct.orgImage, pickle.dumps(dbstruct.features)))
+            img_id = self.cursor.lastrowid  
+            for obj in dbstruct.classes:
+               
+                self.cursor.execute("SELECT * FROM terms WHERE term = ?", (obj.className,))
+                term = self.cursor.fetchone()
+                if term == None:
+                    self.cursor.execute(f"""INSERT INTO terms (term) VALUES (?)
+                    """, (obj.className,))
+                    term_id = self.cursor.lastrowid
+                else:
+                    term_id = term[0]
+
+                self.cursor.execute('INSERT INTO objects (image_id, desc) VALUES (?, ?)', (img_id, pickle.dumps(obj.features)))
+                obj_id = self.cursor.lastrowid
+
+                self.cursor.execute('INSERT INTO inverted_index (term_id, object_id) VALUES (?, ?)', (term_id, obj_id))
+                
+                self.con.commit()
+            
+        except sqlite3.Error as e:
+            print(f'Error occurred: {e}')
+
+    def searchImageByTerm(self, termName) -> list[ImageData]:
+            # img.*,
+            self.cursor.execute("""
+                SELECT o.*, i.* FROM inverted_index i
+                JOIN objects o ON o.id = i.object_id
                 JOIN terms t ON i.term_id = t.id
+                JOIN images img ON img.id = o.image_id
                 WHERE t.term = ?
             """, (termName,))
 
+            #row[0] obj_id, img_id, obj_features, img_id, img_path, img_feautres
             rows = self.cursor.fetchall()#one
+            image_objects  = dict()
+            for row in rows:
+                img_id = row[1]
+                if img_id not in image_objects:
+                    image_objects[img_id] = []
+                
+                image_objects[img_id].append(ImageClassificationData(termName, None, row[2]))
             
-            return [DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
+            results: list[ImageData] = []
+            for img_id in image_objects.keys():
+                self.cursor.execute("SELECT i.* FROM images i WHERE i.id = ?", (img_id,))
+                image = self.cursor.fetchone()
+                results.append(ImageData(image[1], image_objects[img_id], image[2]))
+            return results#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
             
     def close(self):
         self.cursor.close()
