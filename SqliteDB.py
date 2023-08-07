@@ -1,21 +1,9 @@
-import struct
 import sqlite3
 import pickle
 import time
-import cv2
 
 from ImageAnalyzation import ImageClassificationData, ImageData
-# class DBObjectStruct:
-#     def __init__(self, term, vec):
-#         self.term = term
-#         self.vector = vec
 
-# class DBStruct:
-#     def __init__(self, path, vector, objects:list[DBObjectStruct]) -> None:
-#         #slika
-#         self.path = path
-#         self.vector = vector
-#         self.objects = objects
 model_names = {'person': 0, 'bicycle': 1, 'car': 2, 'motorcycle': 3, 'airplane': 4, 'bus': 5, 'train': 6, 'truck': 7, 'boat': 8, 'traffic light': 9, 'fire hydrant': 10, 'stop sign': 11, 'parking meter': 12, 'bench': 13, 'bird': 14, 'cat': 15, 'dog': 16, 'horse': 17, 'sheep': 18, 'cow': 19, 'elephant': 20, 'bear': 21, 'zebra': 22, 'giraffe': 23, 'backpack': 24, 'umbrella': 25, 'handbag': 26, 'tie': 27, 'suitcase': 28, 'frisbee': 29, 'skis': 30, 'snowboard': 31, 'sports ball': 32, 'kite': 33, 'baseball bat': 34, 'baseball glove': 35, 'skateboard': 36, 'surfboard': 37, 'tennis racket': 38, 'bottle': 39, 'wine glass': 40, 'cup': 41, 'fork': 42, 'knife': 43, 'spoon': 44, 'bowl': 45, 'banana': 46, 'apple': 47, 'sandwich': 48, 'orange': 49, 'broccoli': 50, 'carrot': 51, 'hot dog': 52, 'pizza': 53, 'donut': 54, 'cake': 55, 'chair': 56, 'couch': 57, 'potted plant': 58, 'bed': 59, 'dining table': 60, 'toilet': 61, 'tv': 62, 'laptop': 63, 'mouse': 64, 'remote': 65, 'keyboard': 66, 'cell phone': 67, 'microwave': 68, 'oven': 69, 'toaster': 70, 'sink': 71, 'refrigerator': 72, 'book': 73, 'clock': 74, 'vase': 75, 'scissors': 76, 'teddy bear': 77, 'hair drier': 78, 'toothbrush': 79}
 
 def get_image_flag(terms):
@@ -40,7 +28,6 @@ def decode_image_flag(flag):
             decoded_terms.append(term)
     return decoded_terms
   
-
 class ImageDB:
     def __init__(self):
         print()
@@ -60,22 +47,6 @@ class ImageDB:
                 );
             """)
             
-            # self.cursor.execute("""  CREATE TABLE IF NOT EXISTS terms (
-            #                     id INTEGER PRIMARY KEY,
-            #                     term TEXT UNIQUE
-            #     );
-            # """)
-            
-            # self.cursor.execute("""
-            #     CREATE TABLE IF NOT EXISTS inverted_index(
-            #         term_id INT,
-            #         object_id INT,
-            #         PRIMARY KEY (term_id, object_id),
-            #         FOREIGN KEY (term_id) REFERENCES terms(id),
-            #         FOREIGN KEY (object_id) REFERENCES objects(id)                    
-            #     );
-            # """)
-
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS images(
                     id INTEGER PRIMARY KEY,
@@ -102,28 +73,12 @@ class ImageDB:
             img_id = self.cursor.lastrowid  
             for obj in dbstruct.classes:
                
-               #self.cursor.execute("SELECT * FROM terms WHERE term = ?", (obj.className,))
-                #term = self.cursor.fetchone()
-                # if term == None:
-                #     self.cursor.execute(f"""INSERT INTO terms (term) VALUES (?)
-                #     """, (obj.className,))
-                #     term_id = self.cursor.lastrowid
-                #else:
-                #    term_id = term[0]
                 self.cursor.execute('INSERT INTO objects (image_id, class_name, desc) VALUES (?, ?, ?)', (img_id, obj.className, pickle.dumps(obj.features)))
-                #obj_id = self.cursor.lastrowid
 
-                #self.cursor.execute('INSERT INTO inverted_index (term_id, object_id) VALUES (?, ?)', (term_id, obj_id))
-                
                 self.con.commit()
         except sqlite3.Error as e:
             print(f'Error occurred: {e}')
-        
-    def test(self,flag):
-        img_flag = get_image_flag(flag)
-        self.cursor.execute('INSERT INTO images (path, flag, desc) VALUES (?, ?, ?)', (None, None,img_flag))
-        self.con.commit()
-    
+   
     def searchImageByTerm(self, termName) -> list[ImageData]:
             # img.*,
             self.cursor.execute("""
@@ -172,9 +127,7 @@ class ImageDB:
                 image_objects[img_id] = ImageData(img_path, [], img_features)
                 
             image_objects[img_id].classes.append(ImageClassificationData(class_name, None, pickle.loads(obj_features)))
-        
-        print(image_objects.values)
-        return image_objects.values#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
+        return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
     
     def close_connection(self):
         self.cursor.close()

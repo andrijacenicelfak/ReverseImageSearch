@@ -153,52 +153,37 @@ class GUI(QMainWindow):
             handle.start()
     
     def display_results(self,photo_path,img_db:ImageDB):
-        pocijetak=time.time()
         self.img_list.clear()
         self.search_results_list.clear()
+        
         image_data = self.img_process.getImageData(cv2.imread(photo_path), True, True, True,True)
         
         img_db.open_connection()
         
-        #db=img_db.load_from_db(image_data.classes)
-        #jednom ucitamo "sva" sranja iz baze
-        
-        #for entry from db:
-        # confidence=self.img_process.compareImages(image_data,img,False,True,True,False)
-        # self.img_list.append(DisplayStruct(path,confidence))
-        pocni_da_meris=0
-        pocni_count=0
-        pocni_da_meris2=0
-        pocni_count2=0
-        imghaha = []
-        for obj in image_data.classes:
-            start_time=time.time()
-            imgs = img_db.searchImageByTerm(obj.className)#sve slike sa tom odrednjemo klasom
-            imghaha += imgs
-            pocni_da_meris+=time.time()-start_time
-            pocni_count+=1
-            #lista slika koje imaju ove objekte
-            for img in imgs:
-                path=img.orgImage
-                start_time=time.time()
-                img.orgImage = cv2.imread(img.orgImage) 
-                confidence=self.img_process.compareImages(image_data,img,False,True,True,False)
-                pocni_da_meris2+=time.time()-start_time
-                pocni_count2+=1
-                self.img_list.append(DisplayStruct(path,confidence))
-        
-        print(imghaha)
-        
+        imgs = img_db.search_by_image([ x.className for x in image_data.classes])#sve slike sa tom odrednjemo klasom
+        length=len(imgs)
+        sum=0
+        for img in imgs:
+            
+            path=img.orgImage
+            img.orgImage = cv2.imread(img.orgImage)
+            start=time.time()
+            confidence=self.img_process.compareImages(image_data,img,False,True,True,False)
+            sum+=time.time()-start
+            # if confidence>0.1:
+            self.img_list.append(DisplayStruct(path,confidence))
+            
+        img_db.close_connection()
+        print(f"Total time:{sum}")
+        print(f"Average time:{sum/length}")
+        print(f"Number of images:{length}")
         self.img_list.sort()
+        self.setCursor(Qt.ArrowCursor)
+        self.btn_photo.setEnabled(True)
         for struct in self.img_list:
             self.add_image_to_grid(struct.image_path,struct.accuracy)
         
-        self.setCursor(Qt.ArrowCursor)
-        self.btn_photo.setEnabled(True)
-        img_db.close_connection()
-        print(f"Vreme za ucitavanje u bazu ukupno:{pocni_da_meris} Prosek za jednom: {pocni_da_meris/pocni_count}")
-        print(f"Vreme za ucitavanje slike i uporedjivanje ukupno:{pocni_da_meris2} Prosek za jednom: {pocni_da_meris2/pocni_count2}")
-        print(f"Vreme {time.time()-pocijetak}")
+        
         
     def add_image_to_grid(self, image_path,accuracy):
         pixmap = QPixmap(image_path)

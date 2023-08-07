@@ -63,12 +63,16 @@ class ImageClassificationData:
         self.className : str =className
         self.boundingBox : BoundingBox = boundingBox
         self.features = features
+    def __iter__(self):
+        return iter(zip(self.className,self.features))#mislim da neme potrebe uopste za bounding box vise zbog prirode naseg problema.
 
 class ImageData:
     def __init__(self, orgImage: None, classes : list[ImageClassificationData] = [], features : list = []):
         self.classes = classes
         self.features = features
         self.orgImage = orgImage
+    def __iter__(self):
+        return iter(zip(self.classes,self.features,self.orgImage))
 class AnalyzationType(Enum):
     FullVector = 0
     BMM = 1
