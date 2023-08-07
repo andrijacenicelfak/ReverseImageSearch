@@ -65,12 +65,7 @@ class GUI(QMainWindow):
         self.img_list=DisplayList()
     
     def initUI(self):
-<<<<<<< HEAD
-        self.setWindowTitle("Light")
-        
-=======
         self.setWindowTitle("GLUEE")
->>>>>>> b60c0769a96b48fd547e46ca4f50694b5f62343e
         self.setGeometry(100,100,1000,600)
         
         main_layout=QVBoxLayout()
@@ -101,7 +96,7 @@ class GUI(QMainWindow):
                 image_data.orgImage = img_path
                 img_db.addImage(image_data)
 
-        img_db.close()  
+        img_db.close_connection()  
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
         
@@ -200,7 +195,7 @@ class GUI(QMainWindow):
         
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
-        img_db.close()
+        img_db.close_connection()
         print(f"Vreme za ucitavanje u bazu ukupno:{pocni_da_meris} Prosek za jednom: {pocni_da_meris/pocni_count}")
         print(f"Vreme za ucitavanje slike i uporedjivanje ukupno:{pocni_da_meris2} Prosek za jednom: {pocni_da_meris2/pocni_count2}")
         print(f"Vreme {time.time()-pocijetak}")
