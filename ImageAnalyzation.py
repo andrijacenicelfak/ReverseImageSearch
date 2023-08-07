@@ -181,7 +181,7 @@ class ImageAnalyzation:
                 nonMaxSum =0 
                 
                 for obj2 in imgData2.classes:
-                    curr = self.compareImageClassificationData(obj1, obj2, imgData1.orgImage, imgData2.orgImage, cutImage=True, compareHistograms=True)
+                    curr = self.compareImageClassificationData(obj1, obj2, imgData1.orgImage, imgData2.orgImage, cutImage=True, compareHistograms=True)#
                     comparisonMax = max(comparisonMax, curr)
                     nonMaxSum = nonMaxSum + curr
                 nonMaxSum = nonMaxSum - comparisonMax
@@ -197,7 +197,7 @@ class ImageAnalyzation:
             return 0
         
         #cut the image
-        if cutImage:
+        if cutImage and (icd1.features is None and icd2.features is None):
             if img1 is None or img2 is None:
                 raise Exception("Can't cut None type")
             img1 = img1[icd1.boundingBox.y1 : icd1.boundingBox.y2, icd1.boundingBox.x1 : icd1.boundingBox.x2]
