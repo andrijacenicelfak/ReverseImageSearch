@@ -62,6 +62,7 @@ class GUI(QMainWindow):
         
     def initUI(self):
         self.setWindowTitle("Light")
+        
         self.setGeometry(100,100,1000,600)
         
         main_layout=QVBoxLayout()
