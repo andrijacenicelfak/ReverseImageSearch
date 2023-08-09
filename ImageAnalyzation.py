@@ -155,17 +155,17 @@ class ImageAnalyzation:
         #     compareImageObjects = False
 
         #compare whole images
-        wholeImageFactor = 1
-        if compareWholeImages:
-            if imgData1.features is None:
-                imgData1.features = self.getFeatureVector(imgData1.orgImage)
+        # wholeImageFactor = 1
+        # if compareWholeImages:
+        #     if imgData1.features is None:
+        #         imgData1.features = self.getFeatureVector(imgData1.orgImage)
 
-            if imgData2.features is None:
-                imgData2.features = self.getFeatureVector(imgData2.orgImage)
-            histWeight = 1
-            if compareHistograms:
-                histWeight = self.compareImageHistograms(imgData1.orgImage, imgData2.orgImage)
-            wholeImageFactor = histWeight * (100 - cosine(imgData1.features, imgData2.features)*1000) / 100
+        #     if imgData2.features is None:
+        #         imgData2.features = self.getFeatureVector(imgData2.orgImage)
+        #     histWeight = 1
+        #     if compareHistograms:
+        #         histWeight = self.compareImageHistograms(imgData1.orgImage, imgData2.orgImage)
+        #     wholeImageFactor = histWeight * (100 - cosine(imgData1.features, imgData2.features)*1000) / 100
 
         #Compare objects in images
         imageObjectsFactor = 1
@@ -185,7 +185,7 @@ class ImageAnalyzation:
                 nonMaxSum =0 
                 
                 for obj2 in imgData2.classes:
-                    curr = self.compareImageClassificationData(obj1, obj2, imgData1.orgImage, imgData2.orgImage, cutImage=True, compareHistograms=True)#
+                    curr = self.compareImageClassificationData(obj1, obj2, imgData1.orgImage, imgData2.orgImage, cutImage=False, compareHistograms=False)#
                     comparisonMax = max(comparisonMax, curr)
                     nonMaxSum = nonMaxSum + curr
                 nonMaxSum = nonMaxSum - comparisonMax
@@ -193,7 +193,8 @@ class ImageAnalyzation:
 
             imageObjectsFactor = comparisonSum * 2 / max(1, numOfObjects + numOfDifferentObjects)
 
-        return (wholeImageFactor * imageObjectsFactor)
+        # return (wholeImageFactor * imageObjectsFactor)
+        return (1 * imageObjectsFactor)
     
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationData(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):

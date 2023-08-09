@@ -124,7 +124,7 @@ class ImageDB:
         for row in rows:
             img_id, img_path, flag0, flag1, img_features, obj_id, _, class_name, obj_features = row
             if img_id not in image_objects:
-                image_objects[img_id] = ImageData(img_path, [], img_features)
+                image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features))
                 
             image_objects[img_id].classes.append(ImageClassificationData(class_name, None, pickle.loads(obj_features)))
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]

@@ -11,6 +11,7 @@ img_db=ImageDB()
 
 app = QApplication(sys.argv)
 window = GUI(img_db,img_analyzer)
+window.index_folder("")
 window.show()
 sys.exit(app.exec_())
 # img_db.open_connection()
