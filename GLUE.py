@@ -25,39 +25,29 @@ from PyQt5.QtGui import (
     QDesktopServices,   
     QIcon,
 )
-from ImageAnalyzation import ImageClassificationData, ImageData
-
-class DisplayStruct:#TODO: napravi ga u struct of arrays, ne array of structs
-    def __init__(self,image_path,accuracy):
-        self.image_path=image_path
-        self.accuracy=accuracy
 
 class DisplayList:
 
     def __init__(self):
-        self.list=[]
+        self.image_paths=[]
+        self.accuracies=[]
     
     def __iter__(self):
-        return iter(self.list)
+        return iter(zip(self.image_paths,self.accuracies))
     
-    def append(self,struct):
-        existing_struct = self.contains(struct.image_path)
-        if existing_struct:
-            existing_struct.accuracy = (existing_struct.accuracy + struct.accuracy) / 2
-        else:
-            self.list.append(struct)
-    
-    def contains(self,image_path):
-        for struct in self.list:
-            if struct.image_path==image_path:
-                return struct
-        return None
-    
+    def append(self,image_path,accuracy):
+        self.image_paths.append(image_path)
+        self.accuracies.append(accuracy)
+        
     def sort(self):
-        self.list.sort(key=lambda x: x.accuracy, reverse=True)
+        temporary = sorted(zip(self.image_paths, self.accuracies), key=lambda x: x[1], reverse=True)
+        for ind, (img_path, acc) in enumerate(temporary):
+            self.image_paths[ind] = img_path
+            self.accuracies[ind] = acc
     
     def clear(self):
-        self.list.clear()
+        self.image_paths.clear()
+        self.accuracies.clear()
 
 from SqliteDB import  ImageDB
 class GUI(QMainWindow):
@@ -176,22 +166,21 @@ class GUI(QMainWindow):
             confidence=self.img_process.compareImages(image_data,img,compareWholeImages = False, compareImageObjects = True, compareHistograms = False, containAllObjects = False)
             dog=time.time()-start
             sum+=dog
-            if confidence>0.2:
-                # self.add_image_to_grid(DisplayStruct(img.orgImage,confidence))
-                self.img_list.append(DisplayStruct(img.orgImage,confidence))
+            if confidence>0.39:
+                self.img_list.append(img.orgImage,confidence)
         print(f"Total:{time.time()-xD}")
         img_db.close_connection()
         
         print(f"Total time:{sum}")
-        print(f"Average time:{sum/length}")
+        print(f"Average time per image:{sum/length}")
         print(f"Number of images:{length}")
         
         self.img_list.sort()
         
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
-        for struct in self.img_list:
-            self.add_image_to_grid(struct.image_path,struct.accuracy)
+        for image_path,accuracy in self.img_list:
+            self.add_image_to_grid(image_path,accuracy)
         
         
         
