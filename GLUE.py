@@ -89,7 +89,7 @@ class GUI(QMainWindow):
         img_db.open_connection()
         for batch in file_exp.search2():
             for (img_path, image) in batch:
-                image_data = self.img_process.getImageData(image, True, True, True,False,False)
+                image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
                 image_data.orgImage = img_path
                 img_db.addImage(image_data)
 
@@ -153,7 +153,7 @@ class GUI(QMainWindow):
         self.img_list.clear()
         self.search_results_list.clear()
         
-        image_data = self.img_process.getImageData(cv2.imread(photo_path), True, True, True,True)
+        image_data = self.img_process.getImageData(cv2.imread(photo_path),imageFeatures=True, objectsFeatures=True)
         
         img_db.open_connection()
         imgs = img_db.search_by_image([ x.className for x in image_data.classes])#sve slike sa tom odrednjemo klasom
@@ -163,11 +163,11 @@ class GUI(QMainWindow):
         xD=time.time()
         for img in imgs:
             start=time.time()
-            confidence=self.img_process.compareImages(image_data,img,compareWholeImages = False, compareImageObjects = True, compareHistograms = False, containAllObjects = False)
+            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareWholeImages = True)
             dog=time.time()-start
             sum+=dog
-            if confidence>0.39:
-                self.img_list.append(img.orgImage,confidence)
+            # if confidence>0.39:
+            self.img_list.append(img.orgImage,confidence)
         print(f"Total:{time.time()-xD}")
         img_db.close_connection()
         

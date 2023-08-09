@@ -32,10 +32,10 @@ class ImageDB:
     def __init__(self):
         print()
     def open_connection(self):
-        self.con = sqlite3.connect("test2.db")
+        self.con = sqlite3.connect("test3.db")
         self.cursor = self.con.cursor()
         try:
-            self.con = sqlite3.connect("test2.db")
+            self.con = sqlite3.connect("test3.db")
             self.cursor = self.con.cursor()
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS objects (
@@ -43,6 +43,7 @@ class ImageDB:
                     image_id INT,
                     class_name TEXT NOT NULL,
                     desc BLOB NOT NULL,
+                    weight REAL NOT NULL,
                     FOREIGN KEY (image_id) REFERENCES images(id)
                 );
             """)
@@ -73,7 +74,7 @@ class ImageDB:
             img_id = self.cursor.lastrowid  
             for obj in dbstruct.classes:
                
-                self.cursor.execute('INSERT INTO objects (image_id, class_name, desc) VALUES (?, ?, ?)', (img_id, obj.className, pickle.dumps(obj.features)))
+                self.cursor.execute('INSERT INTO objects (image_id, class_name, desc,weight) VALUES (?, ?, ?,?)', (img_id, obj.className, pickle.dumps(obj.features),obj.weight))
 
                 self.con.commit()
         except sqlite3.Error as e:
@@ -98,7 +99,7 @@ class ImageDB:
                 if img_id not in image_objects:
                     image_objects[img_id] = []
                 
-                image_objects[img_id].append(ImageClassificationData(termName, None, pickle.loads(row[2])))
+                image_objects[img_id].append(ImageClassificationData(termName, None, pickle.loads(row[2]),row[3]))
             print(time.time()-start)
             results: list[ImageData] = []
             for img_id in image_objects.keys():
@@ -122,11 +123,11 @@ class ImageDB:
         image_objects  = {}
         
         for row in rows:
-            img_id, img_path, flag0, flag1, img_features, obj_id, _, class_name, obj_features = row
+            img_id, img_path, flag0, flag1, img_features, obj_id, _, class_name, obj_features, weight= row
             if img_id not in image_objects:
                 image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features))
                 
-            image_objects[img_id].classes.append(ImageClassificationData(class_name, None, pickle.loads(obj_features)))
+            image_objects[img_id].classes.append(ImageClassificationData(class_name, None, pickle.loads(obj_features),weight))
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
     
     def close_connection(self):

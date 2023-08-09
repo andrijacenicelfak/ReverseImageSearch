@@ -8,6 +8,8 @@ from ultralytics.utils.tal import dist2bbox, make_anchors
 import json
 from scipy.spatial.distance import cosine
 import os
+import torchvision
+from ImageAutocoder import ImageAutoencoderConvColor4R5C
 
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
 # The functionality remains the same; it just adds the final part.
@@ -59,58 +61,87 @@ class BoundingBox:
 
 
 class ImageClassificationData:
-    def __init__(self, className : str, boundingBox : BoundingBox, features : list = None):
+    def __init__(self, className : str, boundingBox : BoundingBox, features : list = None, weight : float = 0):
         self.className : str =className
         self.boundingBox : BoundingBox = boundingBox
         self.features = features
-    def __iter__(self):
-        return iter(zip(self.className,self.features))#mislim da neme potrebe uopste za bounding box vise zbog prirode naseg problema.
+        self.weight : float = weight
 
 class ImageData:
     def __init__(self, orgImage: None, classes : list[ImageClassificationData] = [], features : list = []):
         self.classes = classes
         self.features = features
         self.orgImage = orgImage
-    def __iter__(self):
-        return iter(zip(self.classes,self.features,self.orgImage))
 class AnalyzationType(Enum):
     FullVector = 0
     BMM = 1
     Avg = 2
     Cut = 3
+    CoderDecoder = 4
 class ImageAnalyzation:
-    typeDict = {AnalyzationType.FullVector : None, AnalyzationType.BMM : "bmm", AnalyzationType.Avg : "avg", AnalyzationType.Cut : "2048"}
-    def __init__(self, model : str, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.Cut):
+    typeDict = {
+        AnalyzationType.FullVector : None,
+        AnalyzationType.BMM : "bmm",
+        AnalyzationType.Avg : "avg", 
+        AnalyzationType.Cut : "2048", 
+        AnalyzationType.CoderDecoder : None
+        }
+    
+    def __init__(self, model : str, *, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.Cut, coderDecoderModel : str = None):
         self.model = YOLO(model)
         self.model.to(device)
         self.modelNames = self.model.names
         self.modelName = model
         self.vlist = None
         self.wholeVector = False
-        if type != 0:
+        self.coderDecoder = False
+        self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
+        self.coderDecoderModel.eval()
+        self.coderDecoderModel.load_state_dict(torch.load(coderDecoderModel))
+
+        self.t = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.5), (0.5))
+        ])
+
+        if self.typeDict[analyzationType] != None:
             if os.path.exists(model + "-" + self.typeDict[analyzationType] +  ".json"):
-                with open(model + "-" + self.typeDict[analyzationType]  + ".json", "r") as   f:
+                with open(model + "-" + self.typeDict[analyzationType] + ".json", "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print("There is not vector for that model. You should first generate the model vector. Returninig the whole vector!")
                 self.wholeVector = True
+        elif analyzationType == AnalyzationType.CoderDecoder:
+            self.coderDecoder = True    
+            # if os.path.exists(os.getcwd() + "\\" + model + "-" + self.typeDict[AnalyzationType.Cut] +  ".json"):
+            vectorString = f'{os.getcwd()}\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
+
+            if os.path.exists(vectorString):
+                with open(vectorString, "r") as   f:
+                    self.vlist = json.load(fp=f)
+            else:
+                print(f"There is not vector for that model. You should first generate the model vector. Returninig the whole vector!")
         else:
             self.wholeVector = True
         modifyDetectClass()
         # self.pca : PCA = joblib.load("yolov8s-pca.joblib")
 
     
-    def getObjectClasses(self, image, objectFeatures = False, conf = 0.65) -> list[ImageClassificationData]:
+    def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.55) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
         data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
-        imcdata = [ImageClassificationData(className=d[0], boundingBox=BoundingBox(d[1][0], d[1][1], d[1][2], d[1][3]), features=None) for d in data]
+        imcdata = []
+        for d in data:
+            bbox = BoundingBox(d[1][0], d[1][1], d[1][2], d[1][3])
+            weight = ((bbox.x2 - bbox.x1) * (bbox.y2 - bbox.y1)) / (image.shape[0] * image.shape[1])
+            imcdata.append(ImageClassificationData(className=d[0], boundingBox=bbox, features=None, weight = weight))
 
         if objectFeatures:
             for d in range(len(imcdata)):
                 imcdata[d].features = self.getFeatureVectorFromBounds(image, imcdata[d].boundingBox)
         return imcdata
     
-    def getFeatureVector(self, image, wholeVector = False) -> list:
+    def getFeatureVector(self, image, *, wholeVector = False) -> list:
         self.value = None
         def setValue(x : any):
             self.value = x
@@ -121,15 +152,20 @@ class ImageAnalyzation:
     
     def getFeatureVectorFromBounds(self, image, boundigBox : BoundingBox = None, wholeVector = False) -> list:
         image = image[boundigBox.y1 : boundigBox.y2, boundigBox.x1 : boundigBox.x2]
-        return self.getFeatureVector(image, wholeVector)
-    
-    def getImageData(self, image, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
+        if not self.coderDecoder:
+            return self.getFeatureVector(image, wholeVector=wholeVector)
+        else:
+            img = cv2.resize(image, (128, 128))#.transpose(2, 1, 0)
+            img = self.t(img)
+            return self.getCodedFeatureVector(image=img)
+        
+    def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
         if classesData:
-            classes = self.getObjectClasses(image, objectsFeatures)
+            classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
         if imageFeatures:
-            imgFeatures = self.getFeatureVector(image, wholeVector)
+            imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
         return ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
 
     
@@ -147,7 +183,7 @@ class ImageAnalyzation:
     # combinedNumObj is the combined numb of objects in two images
     # numOfDiffObj is number of classes that appear in on image and not the other and is they do appear number of different number of apperances
     # wholeImageSimilarity histogram comparison and descriptor comaparison
-    def compareImages(self, imgData1 : ImageData, imgData2: ImageData, compareWholeImages = False, compareImageObjects = False, compareHistograms = True, containAllObjects = False):
+    def compareImagesOld(self, imgData1 : ImageData, imgData2: ImageData, *, compareWholeImages = False, compareImageObjects = False, compareHistograms = True, containAllObjects = False):
         if imgData1.orgImage is None or imgData2.orgImage is None:
             raise Exception("Image data should contain the original image for comparesons")
         
@@ -155,17 +191,17 @@ class ImageAnalyzation:
         #     compareImageObjects = False
 
         #compare whole images
-        # wholeImageFactor = 1
-        # if compareWholeImages:
-        #     if imgData1.features is None:
-        #         imgData1.features = self.getFeatureVector(imgData1.orgImage)
+        wholeImageFactor = 1
+        if compareWholeImages:
+            if imgData1.features is None:
+                imgData1.features = self.getFeatureVector(imgData1.orgImage)
 
-        #     if imgData2.features is None:
-        #         imgData2.features = self.getFeatureVector(imgData2.orgImage)
-        #     histWeight = 1
-        #     if compareHistograms:
-        #         histWeight = self.compareImageHistograms(imgData1.orgImage, imgData2.orgImage)
-        #     wholeImageFactor = histWeight * (100 - cosine(imgData1.features, imgData2.features)*1000) / 100
+            if imgData2.features is None:
+                imgData2.features = self.getFeatureVector(imgData2.orgImage)
+            histWeight = 1
+            if compareHistograms:
+                histWeight = self.compareImageHistograms(imgData1.orgImage, imgData2.orgImage)
+            wholeImageFactor = histWeight * (100 - cosine(imgData1.features.flatten(), imgData2.features.flatten())*1000) / 100
 
         #Compare objects in images
         imageObjectsFactor = 1
@@ -185,7 +221,7 @@ class ImageAnalyzation:
                 nonMaxSum =0 
                 
                 for obj2 in imgData2.classes:
-                    curr = self.compareImageClassificationData(obj1, obj2, imgData1.orgImage, imgData2.orgImage, cutImage=False, compareHistograms=False)#
+                    curr = self.compareImageClassificationData(obj1, obj2, img1=imgData1.orgImage, img2=imgData2.orgImage, cutImage=True, compareHistograms=True)
                     comparisonMax = max(comparisonMax, curr)
                     nonMaxSum = nonMaxSum + curr
                 nonMaxSum = nonMaxSum - comparisonMax
@@ -193,16 +229,64 @@ class ImageAnalyzation:
 
             imageObjectsFactor = comparisonSum * 2 / max(1, numOfObjects + numOfDifferentObjects)
 
-        # return (wholeImageFactor * imageObjectsFactor)
-        return (1 * imageObjectsFactor)
+        return (wholeImageFactor * imageObjectsFactor)
+
+    def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False):
+        objectComparison = 1
+
+        if compareObjects:
+            fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
+            sumAll = 0
+            for i in range(len(imgData1.classes)):
+                j = fts[i][0]
+                if j == -1:
+                    continue
+                if stf[j][0] == i:
+                    sumAll += fts[i][1]
+            objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes)))
+        
+        imageComparison = 1
+
+        if compareWholeImages:
+            imageComparison = 1 - cosine(imgData1.features, imgData2.features)
+
+        return objectComparison * imageComparison
     
+    #Generates the dictionarys of the object similarity
+    def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData) -> (dict, dict):
+        fts = dict()
+        stf = dict()
+        for i in range(len(imgData1.classes)):
+            fts[i] = (-1, 0)
+        for i in range(len(imgData2.classes)):
+            stf[i] = (-1, 0)
+        
+        for i, classData1 in enumerate(imgData1.classes):
+            for j, classData2 in enumerate(imgData2.classes):
+                sim = self.compareImageClassificationData(icd1=classData1, icd2=classData2)
+                if fts[i][1] <= sim:
+                    fts[i] = (j, sim)
+                if stf[j][1] <= sim:
+                    stf[j] = (i, sim)
+
+        return (fts, stf)
+    #Calculates the similarity of objects on image
+    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData):
+        if icd1.features is None or icd2.features is None:
+            raise Exception("Feature vector is None!")
+        if icd1.weight is None or icd2.weight is None:
+            raise Exception("No weights for calculating similarity!")
+        if icd1.className != icd2.className:
+            return 0
+        return (1 - cosine(icd1.features, icd2.features)) * icd1.weight * icd2.weight
+
     # compares two images by cutting the image and comparing two classes, returns "distance"
-    def compareImageClassificationData(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):
+    def compareImageClassificationDataOld(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, *, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):
         if icd1.className != icd2.className:
             return 0
         
         #cut the image
-        if cutImage and (icd1.features is None and icd2.features is None):
+        if cutImage:
             if img1 is None or img2 is None:
                 raise Exception("Can't cut None type")
             img1 = img1[icd1.boundingBox.y1 : icd1.boundingBox.y2, icd1.boundingBox.x1 : icd1.boundingBox.x2]
@@ -270,3 +354,7 @@ class ImageAnalyzation:
         with open(self.modelName + "-bmm.json", "w") as f:
             json.dump(diffBetweenMMIndexes, fp=f)
         return
+    
+    def getCodedFeatureVector(self, image):
+        with torch.no_grad():
+            return self.coderDecoderModel.encoder(image).cpu().detach().numpy().flatten()
