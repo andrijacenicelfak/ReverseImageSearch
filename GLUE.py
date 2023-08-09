@@ -163,7 +163,7 @@ class GUI(QMainWindow):
         xD=time.time()
         for img in imgs:
             start=time.time()
-            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareWholeImages = True)
+            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True) #pokusao sam sa permutacijama i nije se proslavilo...
             dog=time.time()-start
             sum+=dog
             # if confidence>0.39:
@@ -189,8 +189,6 @@ class GUI(QMainWindow):
         icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         item = QListWidgetItem(QIcon(icon),"")
         item.setData(Qt.UserRole, image_path)
-        accuracy_label = QLabel(f"Accuracy: {accuracy:.2f}")
-        accuracy_label.setAlignment(Qt.AlignCenter)
         self.search_results_list.addItem(item)
     
     def open_selected_image(self, item):
