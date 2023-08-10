@@ -1,7 +1,6 @@
 import sys
 from GLUE import GUI
 from SqliteDB import ImageDB
-import json
 from ImageAnalyzation import AnalyzationType, ImageAnalyzation
 from PyQt5.QtWidgets import (
     QApplication

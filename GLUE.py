@@ -35,6 +35,16 @@ from PyQt5.QtGui import (
 logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 
+class QDisplayListItem(QListWidgetItem):
+    def __init__(self,image_path,accuracy):
+        pixmap=QPixmap(image_path)
+        icon=pixmap.scaled(200,200,Qt.KeepAspectRatio)
+        super().__init__(QIcon(icon),"")
+        self.setData(Qt.UserRole,image_path)
+        self.accuracy=accuracy
+        
+    def __lt__(self,other):
+        return self.accuracy<other.accuracy
 
 class DisplayList:
 
@@ -120,9 +130,13 @@ class GUI(QMainWindow):
         img_db.open_connection()
         for batch in file_exp.search2():
             for (img_path, image) in batch:
+                xd=time.time()
                 image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
+                print(f"Time 2 process:{time.time()-xd}")
                 image_data.orgImage = img_path
+                xd=time.time()
                 img_db.addImage(image_data)
+                print(f"Time 2 process:{time.time()-xd}")
 
         img_db.close_connection()  
         self.setCursor(Qt.ArrowCursor)
@@ -179,6 +193,7 @@ class GUI(QMainWindow):
             self.thread_manager.start_thread(function=self.display_results,args=(photo_path,self.img_db))
     
     def display_results(self,photo_path,img_db:ImageDB):
+        xD=time.time()
         self.img_list.clear()
         self.search_results_list.clear()
         
@@ -186,6 +201,7 @@ class GUI(QMainWindow):
         
         img_db.open_connection()
         imgs = img_db.search_by_image([ x.className for x in image_data.classes])#sve slike sa tom odrednjemo klasom
+        img_db.close_connection()
         
         length=len(imgs)
         sum=0
@@ -195,7 +211,6 @@ class GUI(QMainWindow):
             dog=time.time()-start
             sum+=dog
             self.img_list.append(img.orgImage,confidence)
-        img_db.close_connection()
         
         print(f"Total time:{sum}")
         print(f"Average time per image:{sum/length}")
@@ -203,13 +218,16 @@ class GUI(QMainWindow):
         
         self.img_list.sort()
         
-        xD=time.time()
+        for index,(image_path,accuracy) in enumerate(self.img_list):
+            if index==25:
+                break
+            self.add_image_to_grid(image_path,accuracy)
+        
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
-        for image_path,accuracy in self.img_list:
-            self.add_image_to_grid(image_path,accuracy)
-        print(f"Total:{time.time()-xD}")
+        self.update()
         
+        print(f"Total:{time.time()-xD}")
         
     def add_image_to_grid(self, image_path,accuracy):
         pixmap = QPixmap(image_path)
@@ -217,7 +235,6 @@ class GUI(QMainWindow):
         item = QListWidgetItem(QIcon(icon),"")
         item.setData(Qt.UserRole, image_path)
         self.search_results_list.addItem(item)
-        self.search_results_list.scrollToItem(item, QListWidget.PositionAtTop)
 
     def open_selected_image(self, item):
         image_path = item.data(Qt.UserRole)
