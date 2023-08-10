@@ -127,7 +127,7 @@ class ImageDB:
             if img_id not in image_objects:
                 image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features))
                 
-            image_objects[img_id].classes.append(ImageClassificationData(class_name, None, pickle.loads(obj_features),weight))
+            
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
     
     def close_connection(self):

@@ -1,8 +1,8 @@
-import cProfile
+import logging
+from SqliteDB import  ImageDB
 import threading
 import time
 from FileExplorer import FileExplorer
-from time import sleep
 import cv2
 from PyQt5.QtWidgets import (
     QMainWindow,
@@ -15,16 +15,26 @@ from PyQt5.QtWidgets import (
     QListWidgetItem,
     QListWidget,
     QScrollArea,
+    QGridLayout,
     )
 from PyQt5.QtCore import (
     Qt,
     QUrl,
+    QRunnable,
+    QThread,
+    pyqtSlot, 
+    pyqtSignal,
+    QThreadPool,
+    QObject,
 )
 from PyQt5.QtGui import (
     QPixmap,
     QDesktopServices,   
     QIcon,
 )
+logging.basicConfig(format="%(message)s", level=logging.INFO)
+
+
 
 class DisplayList:
 
@@ -48,8 +58,27 @@ class DisplayList:
     def clear(self):
         self.image_paths.clear()
         self.accuracies.clear()
+        
+class MyThread(QRunnable):
+    
+    def __init__(self,function,args):
+        super().__init__()
+        self.function=function
+        self.args=args
+        
+    def run(self):
+        self.function(*self.args)
 
-from SqliteDB import  ImageDB
+class MyThreadManager(QObject):
+ 
+    def __init__(self):
+        super().__init__()
+        self.thread_pool=QThreadPool()
+        
+    def start_thread(self,function,args):
+        handle=MyThread(function=function,args=args)
+        self.thread_pool.start(handle)
+
 class GUI(QMainWindow):
     def __init__(self,img_db,img_proc):
         super().__init__()
@@ -60,7 +89,9 @@ class GUI(QMainWindow):
         self.img_db=img_db
         self.img_process=img_proc
         self.img_list=DisplayList()
-    
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.thread_manager=MyThreadManager()
+        
     def initUI(self):
         self.setWindowTitle("GLUEE")
         self.setGeometry(100,100,1000,600)
@@ -71,7 +102,8 @@ class GUI(QMainWindow):
         
         self.search_results(main_layout)
         
-        self.buttons_layout=QHBoxLayout()
+        # self.buttons_layout=QHBoxLayout()
+        self.buttons_layout=QGridLayout()
         
         self.buttons_layout.addWidget(self.btn_select_photo())
         self.buttons_layout.addWidget(self.btn_select_folder())
@@ -84,7 +116,6 @@ class GUI(QMainWindow):
     
 
     def index_folder(self,path,img_db:ImageDB):
-        print("Hello, orlDW!") #DO NOT DELETE EVERYTHING BREAKS WITHOUT THIS PRINT
         file_exp = FileExplorer(path)
         img_db.open_connection()
         for batch in file_exp.search2():
@@ -105,8 +136,7 @@ class GUI(QMainWindow):
             self.selected_folder_path= folder_path
             self.btn_folder.setEnabled(False)
             self.setCursor(Qt.WaitCursor)
-            handle=threading.Thread(target=self.index_folder,args=(folder_path,self.img_db))
-            handle.start()
+            self.thread_manager.start_thread(function=self.index_folder,args=(folder_path,self.img_db))
             print(f"Indexed folder:{folder_path}")
     
     def btn_select_folder(self):
@@ -146,8 +176,7 @@ class GUI(QMainWindow):
             self.setCursor(Qt.WaitCursor)
             self.display_selected_photo()
             self.btn_photo.setEnabled(False)
-            handle=threading.Thread(target=self.display_results,args=(photo_path,self.img_db))
-            handle.start()
+            self.thread_manager.start_thread(function=self.display_results,args=(photo_path,self.img_db))
     
     def display_results(self,photo_path,img_db:ImageDB):
         self.img_list.clear()
@@ -160,15 +189,12 @@ class GUI(QMainWindow):
         
         length=len(imgs)
         sum=0
-        xD=time.time()
         for img in imgs:
             start=time.time()
             confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True) #pokusao sam sa permutacijama i nije se proslavilo...
             dog=time.time()-start
             sum+=dog
-            # if confidence>0.39:
             self.img_list.append(img.orgImage,confidence)
-        print(f"Total:{time.time()-xD}")
         img_db.close_connection()
         
         print(f"Total time:{sum}")
@@ -177,11 +203,12 @@ class GUI(QMainWindow):
         
         self.img_list.sort()
         
+        xD=time.time()
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
         for image_path,accuracy in self.img_list:
             self.add_image_to_grid(image_path,accuracy)
-        
+        print(f"Total:{time.time()-xD}")
         
         
     def add_image_to_grid(self, image_path,accuracy):
@@ -190,7 +217,8 @@ class GUI(QMainWindow):
         item = QListWidgetItem(QIcon(icon),"")
         item.setData(Qt.UserRole, image_path)
         self.search_results_list.addItem(item)
-    
+        self.search_results_list.scrollToItem(item, QListWidget.PositionAtTop)
+
     def open_selected_image(self, item):
         image_path = item.data(Qt.UserRole)
         if image_path:
