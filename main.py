@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt
-img_analyzer=ImageAnalyzation.ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=ImageAnalyzation.AnalyzationType.CoderDecoder, coderDecoderModel=r"C:\dev\Demo\ImageAnalyzation\ConvModelColor4R5C-28.model")
+img_analyzer=ImageAnalyzation.ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=ImageAnalyzation.AnalyzationType.CoderDecoder, coderDecoderModel=r"ImageAnalyzation\ConvModelColor4R5C-28.model")
 img_db=SqliteDB.ImageDB()
 app = QApplication(sys.argv)
 palette = QPalette()
