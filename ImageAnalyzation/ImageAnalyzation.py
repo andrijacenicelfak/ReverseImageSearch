@@ -58,6 +58,8 @@ class BoundingBox:
         self.y2 = y2
     def toStr(self) -> str:
         return str(self.x1) + " : " + str(self.x2) + " :: " + str(self.y1) + " : "  + str(self.y2)
+    def __eq__(self, other) -> bool:
+        return self.x1 == other.x1 and self.x2 == other.x2 and self.y1 == other.y1 and self.y2 == other.y2
 
 
 class ImageClassificationData:
@@ -66,12 +68,18 @@ class ImageClassificationData:
         self.boundingBox : BoundingBox = boundingBox
         self.features = features
         self.weight : float = weight
+        self.id = None
+    def __eq__(self, other) -> bool:
+        return self.className == other.className and self.boundingBox == other.boundingBox and self.features == other.features and self.weight == other.weight
 
 class ImageData:
-    def __init__(self, orgImage: None, classes : list[ImageClassificationData] = [], features : list = []):
+    def __init__(self, orgImage: None, classes : list[ImageClassificationData] = [], features : list = [], histogram  = None):
         self.classes = classes
         self.features = features
         self.orgImage = orgImage
+        self.histogram = histogram
+    def __eq__(self, other) -> bool:
+        return self.classes == other.classes and self.features == other.features and self.orgImage == other.orgImage
 class AnalyzationType(Enum):
     FullVector = 0
     BMM = 1
@@ -88,8 +96,10 @@ class ImageAnalyzation:
         }
     
     def __init__(self, model : str, *, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.Cut, coderDecoderModel : str = None):
+        model = model.split(".")[0]
         self.model = YOLO(model)
         self.model.to(device)
+        self.device = device
         self.modelNames = self.model.names
         self.modelName = model
         self.vlist = None
@@ -97,7 +107,8 @@ class ImageAnalyzation:
         self.coderDecoder = False
         self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
         self.coderDecoderModel.eval()
-        self.coderDecoderModel.load_state_dict(torch.load(coderDecoderModel))
+        self.coderDecoderModel.load_state_dict(torch.load(f".\\models\\{coderDecoderModel}.model"))
+        self.coderDecoderModel.to(device)
 
         self.t = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
@@ -105,29 +116,28 @@ class ImageAnalyzation:
         ])
 
         if self.typeDict[analyzationType] != None:
-            if os.path.exists(model + "-" + self.typeDict[analyzationType] +  ".json"):
-                with open(model + "-" + self.typeDict[analyzationType] + ".json", "r") as   f:
+            mpath = f".\\models\\{model}-{self.typeDict[analyzationType]}.json"
+            if os.path.exists(mpath):
+                with open(mpath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
-                print("There is not vector for that model. You should first generate the model vector. Returninig the whole vector!")
+                print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
                 self.wholeVector = True
         elif analyzationType == AnalyzationType.CoderDecoder:
             self.coderDecoder = True    
-            # if os.path.exists(os.getcwd() + "\\" + model + "-" + self.typeDict[AnalyzationType.Cut] +  ".json"):
-            vectorString = f'{os.getcwd()}\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
+            vectorString = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
 
             if os.path.exists(vectorString):
                 with open(vectorString, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
-                print(f"There is not vector for that model. You should first generate the model vector. Returninig the whole vector!")
+                print(f"There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
         else:
             self.wholeVector = True
         modifyDetectClass()
-        # self.pca : PCA = joblib.load("yolov8s-pca.joblib")
 
-    
-    def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.55) -> list[ImageClassificationData]:
+    # Calls the yolo model to get the bounding boxes and classes on the image
+    def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
         data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
         imcdata = []
@@ -157,18 +167,34 @@ class ImageAnalyzation:
         else:
             img = cv2.resize(image, (128, 128))#.transpose(2, 1, 0)
             img = self.t(img)
-            return self.getCodedFeatureVector(image=img)
-        
+            return self.getCodedFeatureVector(images=img).flatten()
+
+    
     def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
         if classesData:
             classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
         if imageFeatures:
-            imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
-        return ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
+                imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
+        imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
+        # histogram=self.generateHistogram(imageData=imgData, img=image)
+        # imgData.histogram = histogram
+        return imgData
 
-    
+    def generateHistogram(self, imageData : ImageData, img):
+        mask = np.full(img.shape[:2], fill_value=255,dtype="uint8")
+        for c in imageData.classes:
+            bbox = c.boundingBox
+            cv2.rectangle(mask, (bbox.x1, bbox.y1), (bbox.x2, bbox.y2), (0, 0, 0), -20)
+        h = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
+        cv2.normalize(h, h)
+        return h
+        
+
+    def compareHistograms(self, h1, h2):
+        return 1 - cv2.compareHist(h1, h2, cv2.HISTCMP_BHATTACHARYYA)
+
     def compareImageHistograms(self, img1, img2):
         if img1 is None or img2 is None:
             raise Exception("Can't compare histograms if img1 and img2 are None")
@@ -176,7 +202,7 @@ class ImageAnalyzation:
         h1 = cv2.normalize(h1, h1).flatten()
         h2 = cv2.calcHist([img2], [0, 1, 2], None, [16, 16, 16], [0, 256, 0, 256, 0, 256])
         h2 = cv2.normalize(h2, h2).flatten()
-        return 1 - cv2.compareHist(h1, h2, cv2.HISTCMP_BHATTACHARYYA)
+        return cv2.compareHist(h1, h2, cv2.HISTCMP_BHATTACHARYYA) + 1e-4
     
     #compares the whole images with formula: similarity = objSimilarity * wholeImageSimilarity
     # objSimilarity = 2 * (sum(max(similarity(x,y)) - avg(nonmax(similarity(x,y))))) / (combinedNumObj + numOfDiffObj)
@@ -231,26 +257,32 @@ class ImageAnalyzation:
 
         return (wholeImageFactor * imageObjectsFactor)
 
-    def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False):
+    # compares the images by calculating the max object matching and similarity between images
+    # objectComparison = the sum of all the max matches between objects, if two objects are most simmilar 
+    # with each other their simmilarity goes in the sum, the objects that don't match don't
+    def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, histogramComparison = False):
         objectComparison = 1
-
+        # fullWeight = 1
         if compareObjects:
             fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
             sumAll = 0
+            numOfMatches = 0
             for i in range(len(imgData1.classes)):
                 j = fts[i][0]
                 if j == -1:
                     continue
                 if stf[j][0] == i:
                     sumAll += fts[i][1]
-            objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes)))
+                    numOfMatches+=1
+                    # fullWeight -= imgData1.classes[i].weight
+            objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / len(imgData1.classes))
         
         imageComparison = 1
 
         if compareWholeImages:
-            imageComparison = 1 - cosine(imgData1.features, imgData2.features)
+            imageComparison = 1 - cosine(imgData1.features.flatten(), imgData2.features.flatten())
 
-        return objectComparison * imageComparison
+        return objectComparison * imageComparison #- max(self.compareHistograms(imgData1.histogram, imgData2.histogram) * (fullWeight), 0)
     
     #Generates the dictionarys of the object similarity
     def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData) -> (dict, dict):
@@ -271,15 +303,15 @@ class ImageAnalyzation:
 
         return (fts, stf)
     #Calculates the similarity of objects on image
-    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData):
+    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.69):
         if icd1.features is None or icd2.features is None:
             raise Exception("Feature vector is None!")
         if icd1.weight is None or icd2.weight is None:
             raise Exception("No weights for calculating similarity!")
         if icd1.className != icd2.className:
             return 0
-        return (1 - cosine(icd1.features, icd2.features)) * icd1.weight
-
+        dist = (1 - cosine(icd1.features, icd2.features))
+        return (dist if dist >= treshhold else 0) * icd1.weight
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, *, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):
         if icd1.className != icd2.className:
@@ -311,9 +343,11 @@ class ImageAnalyzation:
 
         return (100 - dist)/100 * histWeight
 
+    #Reduce the vector size
     def reduceData(self, data, wholeVector = False):
         return data if wholeVector or self.wholeVector else data[self.vlist]
     
+    #generates the vector for all the images
     def generateVector(self, imgPaths : list[str], minDist = 1.0e-8):
         diff = None
         diffNormalizedLast = None
@@ -355,6 +389,77 @@ class ImageAnalyzation:
             json.dump(diffBetweenMMIndexes, fp=f)
         return
     
-    def getCodedFeatureVector(self, image):
+    # gets the feature vector extracted from the encoder of autoencoderdecoder model
+    def getCodedFeatureVector(self, images):
         with torch.no_grad():
-            return self.coderDecoderModel.encoder(image).cpu().detach().numpy().flatten()
+            return self.coderDecoderModel.encoder(images.to(self.device)).view((-1, 2048)).cpu().detach().numpy()
+        
+    
+    def getImageDataList(self, images, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> list[ImageData]:
+        classes = []
+        imgFeatures = []
+        if classesData:
+            classes = self.getObjectClassesList(images, objectFeatures=objectsFeatures)
+        if imageFeatures:
+            print("Extracting image features with autoencoder NOT with YOLO, yolo's features for whole image comaprison is better than autoencoder")
+            # Not the same as getImageData, can't extract multiple image vectors from yolo only 1 at a time, this uses autoencoder.
+            # Better results with yolo features
+            imgFeatures = self.getFeatureVectorList(torch.stack([self.t(cv2.resize(img, (128,128))) for img in images], dim=0), wholeVector=wholeVector)
+        return [
+                ImageData(
+                    orgImage=(images[i] if returnOriginalImage else None),
+                    classes=classes[i] if classesData else [],
+                    features= imgFeatures[i] if imageFeatures else []
+                )
+            for i in range(len(images))]
+    
+    #Gets the object classes in a list of images, better use getObjectClasses
+    def getObjectClassesList(self, images, *, objectFeatures = True, conf = 0.65) -> list[list[ImageClassificationData]]:
+        reses = self.model.predict(images, stream = True,verbose=False, conf=conf)
+        data = []
+        for res in reses:
+            d = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
+            data.append(d)
+        imcdata = []
+        imagescut : list[list[ImageClassificationData]]= []
+        index = 0
+        for i in range(len(data)):
+            imgData : list[ImageClassificationData] = []
+            for j in range(len(data[i])):
+                d = data[i][j]
+                bbox = BoundingBox(d[1][0], d[1][1], d[1][2], d[1][3])
+                img = images[i][bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
+                if self.coderDecoder:
+                    img = self.t(cv2.resize(img, (128,  128)))
+                else:
+                    img = cv2.resize(img, (224,224))
+                imagescut.append(img)
+                weight = ((bbox.x2 - bbox.x1) * (bbox.y2 - bbox.y1)) / (images[i].shape[0] * images[i].shape[1])
+                classData = ImageClassificationData(className=d[0], boundingBox=bbox, features=None, weight = weight)
+                classData.id = index
+                index += 1
+                imgData.append(classData)
+            imcdata.append(imgData)
+
+        if objectFeatures:
+            index2 = 0
+            vectorData = self.getFeatureVectorList(images=torch.stack(imagescut, dim=0))
+            for i in range(len(imcdata)):
+                for j in range(len(imcdata[i])):
+                    if imcdata[i][j].id == index2:
+                        imcdata[i][j].features = vectorData[index2]
+                        index2 +=1
+                    else:
+                        raise Exception("Error in seting features!")
+
+        return imcdata
+    
+    def getFeatureVectorList(self, images, wholeVector = False) -> list:
+        if not self.coderDecoder:
+            print("Getting the feature vector list from yolov8 is imposible, it has to be done 1 by one image, try using AnalyzationType.CoderDecoder")
+            ret = []
+            for img in images:
+                ret.append(self.getFeatureVector(img, wholeVector=wholeVector))
+            return ret
+        else:
+            return self.getCodedFeatureVector(images=images)
