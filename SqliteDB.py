@@ -67,19 +67,16 @@ class ImageDB:
         
     def addImage(self,dbstruct:ImageData):#orgImage is image but here is path lol
         try:
-
             flag0, flag1 = get_image_flag([x.className for x in dbstruct.classes])
-
             self.cursor.execute('INSERT INTO images (path, flag0, flag1, desc) VALUES (?, ?, ?, ?)', (dbstruct.orgImage, flag0, flag1, pickle.dumps(dbstruct.features)))
             img_id = self.cursor.lastrowid  
             for obj in dbstruct.classes:
-               
                 self.cursor.execute('INSERT INTO objects (image_id, class_name, desc,weight) VALUES (?, ?, ?,?)', (img_id, obj.className, pickle.dumps(obj.features),obj.weight))
-
-                self.con.commit()
+            self.con.commit()                
         except sqlite3.Error as e:
+            self.con.rollback()
             print(f'Error occurred: {e}')
-   
+
     def searchImageByTerm(self, termName) -> list[ImageData]:
             # img.*,
             self.cursor.execute("""
@@ -127,11 +124,9 @@ class ImageDB:
             if img_id not in image_objects:
                 image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features))
                 
-            
+            image_objects[img_id].classes.append(ImageClassificationData(class_name,None,pickle.loads(obj_features),weight))
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
     
     def close_connection(self):
         self.cursor.close()
         self.con.close()
-
-#razlka histograma, -> klasteriyacija

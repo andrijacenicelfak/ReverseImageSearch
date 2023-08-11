@@ -208,8 +208,7 @@ class GUI(QMainWindow):
         for img in imgs:
             start=time.time()
             confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True) #pokusao sam sa permutacijama i nije se proslavilo...
-            dog=time.time()-start
-            sum+=dog
+            sum+=time.time()-start
             self.img_list.append(img.orgImage,confidence)
         
         print(f"Total time:{sum}")

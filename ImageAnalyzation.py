@@ -278,7 +278,7 @@ class ImageAnalyzation:
             raise Exception("No weights for calculating similarity!")
         if icd1.className != icd2.className:
             return 0
-        return (1 - cosine(icd1.features, icd2.features)) * icd1.weight * icd2.weight
+        return (1 - cosine(icd1.features, icd2.features)) * icd1.weight
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, *, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):

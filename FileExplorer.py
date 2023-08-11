@@ -27,14 +27,19 @@ class FileExplorer:
         for file_name in file_list:
             if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
                 self.startDirectory = os.path.normpath(self.startDirectory)
+                
                 image_path = os.path.join(self.startDirectory , file_name)
+                
                 image = cv2.imread(image_path)       
                 if image is not None:
+                    
                     yield_this.append((image_path,image))
                     counter+=1
                 else:
+                    
                     print(f"Unable to read image: {file_name}")
                 if counter==100:
+                    
                     counter=0
                     yield yield_this
                     yield_this.clear()
