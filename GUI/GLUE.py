@@ -1,3 +1,4 @@
+import multiprocessing as mp
 import logging
 import os
 from DB.SqliteDB import  ImageDB
@@ -27,6 +28,8 @@ from PyQt5.QtGui import (
     QDesktopServices,   
     QIcon,
 )
+
+from Video.histoDThresh import summ_video_parallel
 logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 
@@ -123,10 +126,25 @@ class GUI(QMainWindow):
     def index_folder(self,path,img_db:ImageDB):
         img_db.open_connection()
         for batch in search2(path):
-            for (img_path, image) in batch:
-                image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
-                image_data.orgImage = img_path
-                img_db.addImage(image_data)
+            for img_path in batch:
+                if not img_path.endswith('.mp4'):
+                    image=cv2.imread(img_path)
+                    image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
+                    image_data.orgImage = img_path
+                    img_db.addImage(image_data)
+                else:
+                    queue=mp.Queue()
+                    self.thread_manager.start_thread(function=summ_video_parallel,args=(img_path,queue))
+                    # handle=mp.Process(target=summ_video_parallel,args=(img_path,queue))
+                    # handle.start()
+                    while True:
+                        image=queue.get()
+                        image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
+                        image_data.orgImage = img_path
+                        img_db.addImage(image_data)   
+                        if image is None:
+                            break
+                    print("MP4 ends")
 
         img_db.close_connection()  
         self.setCursor(Qt.ArrowCursor)
@@ -141,6 +159,7 @@ class GUI(QMainWindow):
             self.btn_folder.setEnabled(False)
             self.setCursor(Qt.WaitCursor)
             self.thread_manager.start_thread(function=self.index_folder,args=(folder_path,self.img_db))
+            # self.index_folder(folder_path,self.img_db)
             print(f"Indexed folder:{folder_path}")
     
     def btn_select_folder(self):
@@ -174,8 +193,8 @@ class GUI(QMainWindow):
         
     def open_photo_dialog(self):
         options=QFileDialog.Options()
-        photo_path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png)", options=options)
-        if photo_path:
+        photo_path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png *.mp4)", options=options)
+        if not photo_path:
             self.selected_photo_path=photo_path
             self.setCursor(Qt.WaitCursor)
             self.display_selected_photo()
@@ -235,17 +254,17 @@ def search2(startDirectory):
     yield_this=[]
     counter=0
     for file_name in file_list:
-        if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+        if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.mp4')):
+            
             startDirectory = os.path.normpath(startDirectory)
             image_path = os.path.join(startDirectory , file_name)
-            image = cv2.imread(image_path)       
-            if image is not None:
-                yield_this.append((image_path,image))
-                counter+=1
-            else:
-                print(f"Unable to read image: {file_name}")
+            
+            yield_this.append(image_path)
+            counter+=1
+            
             if counter==100:
                 counter=0
                 yield yield_this
                 yield_this.clear()
+    
     yield yield_this
