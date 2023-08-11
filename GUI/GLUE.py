@@ -1,14 +1,12 @@
 import logging
-from SqliteDB import  ImageDB
-import threading
+import os
+from DB.SqliteDB import  ImageDB
 import time
-from FileExplorer import FileExplorer
 import cv2
 from PyQt5.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
     QLabel,
-    QHBoxLayout,
     QPushButton,
     QFileDialog,
     QWidget,
@@ -21,9 +19,6 @@ from PyQt5.QtCore import (
     Qt,
     QUrl,
     QRunnable,
-    QThread,
-    pyqtSlot, 
-    pyqtSignal,
     QThreadPool,
     QObject,
 )
@@ -126,17 +121,12 @@ class GUI(QMainWindow):
     
 
     def index_folder(self,path,img_db:ImageDB):
-        file_exp = FileExplorer(path)
         img_db.open_connection()
-        for batch in file_exp.search2():
+        for batch in search2(path):
             for (img_path, image) in batch:
-                xd=time.time()
                 image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
-                print(f"Time 2 process:{time.time()-xd}")
                 image_data.orgImage = img_path
-                xd=time.time()
                 img_db.addImage(image_data)
-                print(f"Time 2 process:{time.time()-xd}")
 
         img_db.close_connection()  
         self.setCursor(Qt.ArrowCursor)
@@ -239,3 +229,23 @@ class GUI(QMainWindow):
         image_path = item.data(Qt.UserRole)
         if image_path:
             QDesktopServices.openUrl(QUrl.fromLocalFile(image_path))
+            
+def search2(startDirectory):
+    file_list = os.listdir(startDirectory)
+    yield_this=[]
+    counter=0
+    for file_name in file_list:
+        if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+            startDirectory = os.path.normpath(startDirectory)
+            image_path = os.path.join(startDirectory , file_name)
+            image = cv2.imread(image_path)       
+            if image is not None:
+                yield_this.append((image_path,image))
+                counter+=1
+            else:
+                print(f"Unable to read image: {file_name}")
+            if counter==100:
+                counter=0
+                yield yield_this
+                yield_this.clear()
+    yield yield_this

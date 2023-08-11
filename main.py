@@ -1,15 +1,14 @@
 import sys
-from GLUE import GUI
-from SqliteDB import ImageDB
-from ImageAnalyzation import AnalyzationType, ImageAnalyzation
+from GUI import GLUE
+from ImageAnalyzation import ImageAnalyzation
+from DB import SqliteDB
 from PyQt5.QtWidgets import (
     QApplication
 )
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import Qt
-
-img_analyzer=ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="C:\\dev\\Demo\\ConvModelColor4R5C-28.model")
-img_db=ImageDB()
+img_analyzer=ImageAnalyzation.ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=ImageAnalyzation.AnalyzationType.CoderDecoder, coderDecoderModel=r"C:\dev\Demo\ImageAnalyzation\ConvModelColor4R5C-28.model")
+img_db=SqliteDB.ImageDB()
 app = QApplication(sys.argv)
 palette = QPalette()
 palette.setColor(QPalette.Window, QColor(53, 53, 53))
@@ -26,6 +25,6 @@ palette.setColor(QPalette.Link, QColor(42, 130, 218))
 palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
 palette.setColor(QPalette.HighlightedText, Qt.black)
 app.setPalette(palette)
-window = GUI(img_db,img_analyzer)
+window = GLUE.GUI(img_db,img_analyzer)
 window.show()
 sys.exit(app.exec_())

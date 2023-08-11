@@ -9,7 +9,7 @@ import json
 from scipy.spatial.distance import cosine
 import os
 import torchvision
-from ImageAutocoder import ImageAutoencoderConvColor4R5C
+from ImageAnalyzation.ImageAutocoder import ImageAutoencoderConvColor4R5C
 
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
 # The functionality remains the same; it just adds the final part.
