@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 import cv2
 from ultralytics import YOLO
@@ -135,7 +136,10 @@ class ImageAnalyzation:
         else:
             self.wholeVector = True
         modifyDetectClass()
+        self.runThrough()
 
+    def runThrough(self):
+        self.model(source=".\\bus.jpg", verbose=False)
     # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
@@ -169,7 +173,6 @@ class ImageAnalyzation:
             img = self.t(img)
             return self.getCodedFeatureVector(images=img).flatten()
 
-    
     def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
@@ -177,6 +180,7 @@ class ImageAnalyzation:
             classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
         if imageFeatures:
                 imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
+
         imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
         # histogram=self.generateHistogram(imageData=imgData, img=image)
         # imgData.histogram = histogram
