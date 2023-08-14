@@ -157,7 +157,6 @@ class GUI(QMainWindow):
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
         
-    
     def open_folder_dialog(self):
         options = QFileDialog.Options()
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "", options=options)
