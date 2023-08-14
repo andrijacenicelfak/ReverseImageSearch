@@ -67,6 +67,7 @@ def summ_video(video_path, start_frame, end_frame,output_queue):
             break
 
     cap.release()
+    output_queue.put(None)
 
 def summ_video_parallel(video_path:str):
 
@@ -91,21 +92,24 @@ def summ_video_parallel(video_path:str):
         process = mp.Process(target=summ_video, args=(video_path, start_frame, end_frame,queue))
         processes.append(process)
         process.start()
-        
-    while True:
+
+    i=0
+    print(num_cores)
+    while not i==num_cores:
         frame=queue.get()
         if frame is None:
-            print("NONE")
-            break
-        print(1)
-        image_data = img_analyzer.getImageData(frame, imageFeatures=True, objectsFeatures=True)
-        image_data.orgImage = video_path
-        img_db.addImage(image_data)
-    
+            i+=1
+            print(i)
+        else:
+            image_data = img_analyzer.getImageData(frame, imageFeatures=True, objectsFeatures=True)
+            image_data.orgImage = video_path
+            img_db.addImage(image_data)
+    print("gotova petlja")
     for process in processes:
         process.terminate()
     
     img_db.close_connection()
+    print("ZAVRSIO SAM")
 
 # if __name__ == "__main__":
     # clean_dir("kf3")
