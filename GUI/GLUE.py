@@ -1,7 +1,5 @@
 import multiprocessing as mp
-import logging
 import os
-from DB.SqliteDB import  ImageDB
 import time
 import cv2
 from PyQt5.QtWidgets import (
@@ -29,8 +27,7 @@ from PyQt5.QtGui import (
     QIcon,
 )
 
-from Video.histoDThresh import summ_video_parallel
-logging.basicConfig(format="%(message)s", level=logging.INFO)
+from Video.histoDThresh import  summ_video_parallel
 
 
 class QDisplayListItem(QListWidgetItem):
@@ -123,30 +120,22 @@ class GUI(QMainWindow):
         self.setCentralWidget(central_widget)
     
 
-    def index_folder(self,path,img_db:ImageDB):
-        img_db.open_connection()
+    def index_folder(self,path,img_db):
+        xD=time.time()
         for batch in search2(path):
             for img_path in batch:
                 if not img_path.endswith('.mp4'):
+                    img_db.open_connection()
                     image=cv2.imread(img_path)
                     image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
                     image_data.orgImage = img_path
                     img_db.addImage(image_data)
+                    img_db.close_connection()  
                 else:
-                    queue=mp.Queue()
-                    self.thread_manager.start_thread(function=summ_video_parallel,args=(img_path,queue))
-                    # handle=mp.Process(target=summ_video_parallel,args=(img_path,queue))
-                    # handle.start()
-                    while True:
-                        image=queue.get()
-                        image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
-                        image_data.orgImage = img_path
-                        img_db.addImage(image_data)   
-                        if image is None:
-                            break
-                    print("MP4 ends")
-
-        img_db.close_connection()  
+                    handle=mp.Process(target=summ_video_parallel,args=(img_path,))
+                    handle.start()
+                    handle.join()
+        print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
         
@@ -159,8 +148,6 @@ class GUI(QMainWindow):
             self.btn_folder.setEnabled(False)
             self.setCursor(Qt.WaitCursor)
             self.thread_manager.start_thread(function=self.index_folder,args=(folder_path,self.img_db))
-            # self.index_folder(folder_path,self.img_db)
-            print(f"Indexed folder:{folder_path}")
     
     def btn_select_folder(self):
         self.btn_folder=QPushButton("Select Folder To Index", self)
@@ -194,14 +181,14 @@ class GUI(QMainWindow):
     def open_photo_dialog(self):
         options=QFileDialog.Options()
         photo_path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png *.mp4)", options=options)
-        if not photo_path:
+        if  photo_path:
             self.selected_photo_path=photo_path
             self.setCursor(Qt.WaitCursor)
             self.display_selected_photo()
             self.btn_photo.setEnabled(False)
             self.thread_manager.start_thread(function=self.display_results,args=(photo_path,self.img_db))
     
-    def display_results(self,photo_path,img_db:ImageDB):
+    def display_results(self,photo_path,img_db):
         xD=time.time()
         self.img_list.clear()
         self.search_results_list.clear()

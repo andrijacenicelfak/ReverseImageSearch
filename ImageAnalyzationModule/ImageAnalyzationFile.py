@@ -1,3 +1,8 @@
+import sys
+
+
+sys.path.append(r'C:\dev\Demo\GUI')
+
 from enum import Enum
 import cv2
 from ultralytics import YOLO
@@ -9,7 +14,7 @@ import json
 from scipy.spatial.distance import cosine
 import os
 import torchvision
-from ImageAnalyzation.ImageAutocoder import ImageAutoencoderConvColor4R5C
+from ImageAnalyzationModule.ImageAutocoder import ImageAutoencoderConvColor4R5C
 
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
 # The functionality remains the same; it just adds the final part.
