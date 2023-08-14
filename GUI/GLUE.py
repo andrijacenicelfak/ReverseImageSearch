@@ -2,6 +2,8 @@ import multiprocessing as mp
 import os
 import time
 import cv2
+import sys
+sys.path.append(r"C:\dev\Demo\Video")
 from PyQt5.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
@@ -122,19 +124,35 @@ class GUI(QMainWindow):
 
     def index_folder(self,path,img_db):
         xD=time.time()
+        img_db.open_connection()
         for batch in search2(path):
             for img_path in batch:
                 if not img_path.endswith('.mp4'):
-                    img_db.open_connection()
                     image=cv2.imread(img_path)
                     image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
                     image_data.orgImage = img_path
                     img_db.addImage(image_data)
-                    img_db.close_connection()  
                 else:
-                    handle=mp.Process(target=summ_video_parallel,args=(img_path,))
-                    handle.start()
-                    handle.join()
+                    modelsum=0
+                    queue=mp.Queue()
+                    processes=[]
+                    summ_video_parallel(img_path,queue,processes)
+                    i=0
+                    while i!= mp.cpu_count():
+                        frame=queue.get()
+                        if frame is None:
+                            i+=1
+                            print(i)
+                        else:
+                            model=time.time()
+                            image_data = self.img_process.getImageData(frame, imageFeatures=True, objectsFeatures=True)
+                            modelsum+=time.time()-model
+                            image_data.orgImage = img_path
+                            img_db.addImage(image_data)
+                    for process in processes:
+                        process.terminate()
+        img_db.close_connection()
+        print(f"Model:{modelsum}s") 
         print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)

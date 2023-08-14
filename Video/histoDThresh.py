@@ -69,46 +69,39 @@ def summ_video(video_path, start_frame, end_frame,output_queue):
     cap.release()
     output_queue.put(None)
 
-def summ_video_parallel(video_path:str):
-
+def summ_video_parallel(video_path:str,queue,processes):
     cap = cv2.VideoCapture(video_path)
-   
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-      
     cap.release()
-
     num_cores = mp.cpu_count()
     frames_per_core = total_frames // num_cores 
-    processes = []
-    
+    # processes = []
     print("Nesto se desava")
-    queue=mp.Queue(maxsize=0)
-    img_analyzer=ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel=r"ImageAnalyzationModule\ConvModelColor4R5C-28.model")
-    img_db=ImageDB()
-    img_db.open_connection()
+    # img_analyzer=ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel=r"ImageAnalyzationModule\ConvModelColor4R5C-28.model")
+    # img_db=ImageDB()
+    # img_db.open_connection()
     for i in range(0, num_cores):
         start_frame = i*frames_per_core
         end_frame = start_frame + frames_per_core if i < num_cores - 1 else total_frames
         process = mp.Process(target=summ_video, args=(video_path, start_frame, end_frame,queue))
         processes.append(process)
         process.start()
-
-    i=0
-    print(num_cores)
-    while not i==num_cores:
-        frame=queue.get()
-        if frame is None:
-            i+=1
-            print(i)
-        else:
-            image_data = img_analyzer.getImageData(frame, imageFeatures=True, objectsFeatures=True)
-            image_data.orgImage = video_path
-            img_db.addImage(image_data)
-    print("gotova petlja")
-    for process in processes:
-        process.terminate()
+    # i=0
+    # print(num_cores)
+    # while not i==num_cores:
+    #     frame=queue.get()
+    #     if frame is None:
+    #         i+=1
+    #         print(i)
+    #     else:
+    #         image_data = img_analyzer.getImageData(frame, imageFeatures=True, objectsFeatures=True)
+    #         image_data.orgImage = video_path
+    #         img_db.addImage(image_data)
+    # print("gotova petlja")
+    # for process in processes:
+    #     process.terminate()
     
-    img_db.close_connection()
+    # img_db.close_connection()
     print("ZAVRSIO SAM")
 
 # if __name__ == "__main__":
