@@ -28,7 +28,7 @@ from PyQt5.QtGui import (
     QDesktopServices,   
     QIcon,
 )
-
+sys.path.append(".\Video")
 from Video.histoDThresh import  summ_video_parallel
 
 
