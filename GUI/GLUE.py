@@ -178,7 +178,7 @@ class GUI(QMainWindow):
     def search_results(self,main_layout):
         self.search_results_list = QListWidget(self)
         self.search_results_list.setIconSize(QPixmap(200,200).size())
-        self.search_results_list.itemClicked.connect(self.open_selected_image)
+        self.search_results_list.itemDoubleClicked.connect(self.open_selected_image)
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(self.search_results_list)
@@ -210,34 +210,33 @@ class GUI(QMainWindow):
         self.img_list.clear()
         self.search_results_list.clear()
         
-        image_data = self.img_process.getImageData(cv2.imread(photo_path),imageFeatures=True, objectsFeatures=True)
-        
+        img = cv2.imread(photo_path)
+        image_data = self.img_process.getImageData(img ,imageFeatures=True, objectsFeatures=True)
+
         img_db.open_connection()
         imgs = img_db.search_by_image([ x.className for x in image_data.classes])#sve slike sa tom odrednjemo klasom
         img_db.close_connection()
-        
+
         length=len(imgs)
         sum=0
         for img in imgs:
             start=time.time()
-            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True) #pokusao sam sa permutacijama i nije se proslavilo...
+            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
             sum+=time.time()-start
-            self.img_list.append(img.orgImage,confidence)
+            self.img_list.append(img.orgImage, confidence)
         
-        print(f"Total time:{sum}")
+        print(f"Compare time:{sum}")
         print(f"Average time per image:{sum/length}")
         print(f"Number of images:{length}")
         
         self.img_list.sort()
-        
         for index,(image_path,accuracy) in enumerate(self.img_list):
-            if index==25:
-                break
             self.add_image_to_grid(image_path,accuracy)
+            self.update()
         
+
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
-        self.update()
         
         print(f"Total:{time.time()-xD}")
         
