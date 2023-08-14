@@ -6,11 +6,11 @@ from ImageAnalyzationModule.ImageAnalyzationFile import ImageAnalyzation, Analyz
 from PyQt5.QtWidgets import (
     QApplication
 )
-from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtCore import Qt
-img_analyzer=ImageAnalyzation.ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=ImageAnalyzation.AnalyzationType.CoderDecoder, coderDecoderModel=r"ImageAnalyzation\ConvModelColor4R5C-28.model")
-img_db=ImageDB()
-app = QApplication(sys.argv)
-window = GLUE.GUI(img_db,img_analyzer)
-window.show()
-sys.exit(app.exec_())
+if __name__=='__main__':
+    mp.set_start_method('spawn')
+    img_analyzer=ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel=r"ConvModelColor4R5C-28")
+    img_db=ImageDB()
+    app = QApplication(sys.argv)
+    window = GLUE.GUI(img_db,img_analyzer)
+    window.show()
+    sys.exit(app.exec_())

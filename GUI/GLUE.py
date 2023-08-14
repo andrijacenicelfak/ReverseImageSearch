@@ -123,6 +123,7 @@ class GUI(QMainWindow):
     
 
     def index_folder(self,path,img_db):
+        # mp.set_start_method('spawn', force=True)
         xD=time.time()
         img_db.open_connection()
         for batch in search2(path):
@@ -152,7 +153,7 @@ class GUI(QMainWindow):
                     for process in processes:
                         process.terminate()
         img_db.close_connection()
-        print(f"Model:{modelsum}s") 
+        print(f"Model:{modelsum}") 
         print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)

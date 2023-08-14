@@ -1,8 +1,5 @@
 import sys
-
-
 sys.path.append(r'C:\dev\Demo\GUI')
-
 from enum import Enum
 import cv2
 from ultralytics import YOLO
@@ -143,7 +140,7 @@ class ImageAnalyzation:
         self.runThrough()
 
     def runThrough(self):
-        self.model(source=".\\bus.jpg", verbose=False)
+        self.model(source=None, verbose=False)
     # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
