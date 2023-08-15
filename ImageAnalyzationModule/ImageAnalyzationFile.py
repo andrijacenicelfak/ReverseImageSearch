@@ -119,9 +119,6 @@ class ImageAnalyzation:
             vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
             if os.path.exists(vectorPath):
                 with open(vectorPath, "r") as   f:
-            vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
-            if os.path.exists(vectorPath):
-                with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
