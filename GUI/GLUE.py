@@ -240,6 +240,31 @@ class GUI(QMainWindow):
         self.btn_photo.setEnabled(True)
         
         print(f"Total:{time.time()-xD}")
+        """
+        suma = 0
+        for i in imageList:
+            suma += i[1]
+        el = suma / max(1, len(imageList))
+        print(f"EL {el}")
+        imageList = list(filter(lambda x: x[1] > (el), imageList))
+        imageList.sort(key=lambda x: x[1], reverse=True)
+
+        print(f"Compare time:{sum}")
+        print(f"Average time per image:{sum/max(1,length)}")
+        print(f"Number of images:{length}")
+        
+        self.img_list.sort()
+
+        for (image_path,accuracy) in imageList:
+            self.add_image_to_grid(image_path,accuracy)
+            self.update()
+        
+
+        self.setCursor(Qt.ArrowCursor)
+        self.btn_photo.setEnabled(True)
+        
+        print(f"Total:{time.time()-xD}")
+        """
         
     def add_image_to_grid(self, image_path,accuracy):
         pixmap = QPixmap(image_path)

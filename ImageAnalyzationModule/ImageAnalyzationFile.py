@@ -1,5 +1,3 @@
-import sys
-sys.path.append(r'C:\dev\Demo\GUI')
 from enum import Enum
 import cv2
 from ultralytics import YOLO
@@ -109,7 +107,7 @@ class ImageAnalyzation:
         self.coderDecoder = False
         self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
         self.coderDecoderModel.eval()
-        self.coderDecoderModel.load_state_dict(torch.load(f".\\models\\{coderDecoderModel}.model"))
+        self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
         self.coderDecoderModel.to(device)
 
         self.t = torchvision.transforms.Compose([
@@ -118,19 +116,19 @@ class ImageAnalyzation:
         ])
 
         if self.typeDict[analyzationType] != None:
-            mpath = f".\\models\\{model}-{self.typeDict[analyzationType]}.json"
-            if os.path.exists(mpath):
-                with open(mpath, "r") as   f:
+            vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
+            if os.path.exists(vectorPath):
+                with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
                 self.wholeVector = True
         elif analyzationType == AnalyzationType.CoderDecoder:
             self.coderDecoder = True    
-            vectorString = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
+            vectorPath = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
 
-            if os.path.exists(vectorString):
-                with open(vectorString, "r") as   f:
+            if os.path.exists(vectorPath):
+                with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print(f"There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
@@ -138,10 +136,10 @@ class ImageAnalyzation:
             self.wholeVector = True
         modifyDetectClass()
         self.runThrough()
-
+        
     def runThrough(self):
-        self.model(source=None, verbose=False)
-    # Calls the yolo model to get the bounding boxes and classes on the image
+        self.model.predict(np.zeros((64,64,3)), verbose=False)
+    
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
         data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
@@ -174,14 +172,15 @@ class ImageAnalyzation:
             img = self.t(img)
             return self.getCodedFeatureVector(images=img).flatten()
 
+    
     def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
         if classesData:
             classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
         if imageFeatures:
-                imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
-
+                # imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
+                imgFeatures = self.getFetureVectorAutocoder(image)
         imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
         # histogram=self.generateHistogram(imageData=imgData, img=image)
         # imgData.histogram = histogram
@@ -192,6 +191,8 @@ class ImageAnalyzation:
         for c in imageData.classes:
             bbox = c.boundingBox
             cv2.rectangle(mask, (bbox.x1, bbox.y1), (bbox.x2, bbox.y2), (0, 0, 0), -20)
+        # cv2.imshow("hist", cv2.resize(mask, (256, 256)))
+        # cv2.imshow("img", cv2.resize(img, (256,256)))
         h = cv2.calcHist([img], [0, 1, 2], mask, [16, 16, 16], [0, 256, 0, 256, 0, 256])
         cv2.normalize(h, h)
         return h
@@ -285,7 +286,7 @@ class ImageAnalyzation:
         imageComparison = 1
 
         if compareWholeImages:
-            imageComparison = 1 - cosine(imgData1.features.flatten(), imgData2.features.flatten())
+            imageComparison = 1 - cosine(imgData1.features, imgData2.features)
 
         return objectComparison * imageComparison #- max(self.compareHistograms(imgData1.histogram, imgData2.histogram) * (fullWeight), 0)
     
@@ -468,3 +469,14 @@ class ImageAnalyzation:
             return ret
         else:
             return self.getCodedFeatureVector(images=images)
+    
+    def getFetureVectorAutocoder(self, image):
+        images = []
+        for i in range(0,2):
+            size = (128 *(i+1), 128 *(i+1))
+            img = cv2.resize(image, size)
+            for x in range(int(size[0]/128)):
+                for y in range(int(size[1]/128)):
+                    images.append(img[y*128 : (y+1)*128, x*128 : (x+1)*128])
+        imagest = list(map(lambda x: self.t(x), images))
+        return self.coderDecoderModel.encoder(torch.stack(imagest).to(self.device)).cpu().detach().numpy().flatten()
