@@ -57,6 +57,7 @@ class DisplayList:
         self.accuracies.append(accuracy)
         
     def sort(self):
+        #TODO : OVDE ONO STO SAM DOLE STAVIO I NECE
         temporary = sorted(zip(self.image_paths, self.accuracies), key=lambda x: x[1], reverse=True)
         for ind, (img_path, acc) in enumerate(temporary):
             self.image_paths[ind] = img_path
@@ -220,27 +221,24 @@ class GUI(QMainWindow):
 
         length=len(imgs)
         sum=0
+        imageList = []
         for img in imgs:
             start=time.time()
             confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
             sum+=time.time()-start
             self.img_list.append(img.orgImage, confidence)
+            imageList.append((img.orgImage, confidence))
         
-        print(f"Compare time:{sum}")
-        print(f"Average time per image:{sum/length}")
-        print(f"Number of images:{length}")
+        # print(f"Compare time:{sum}")
+        # print(f"Average time per image:{sum/length}")
+        # print(f"Number of images:{length}")
         
-        self.img_list.sort()
-        for index,(image_path,accuracy) in enumerate(self.img_list):
-            self.add_image_to_grid(image_path,accuracy)
-            self.update()
+        # self.img_list.sort()
+        # for index,(image_path,accuracy) in enumerate(self.img_list):
+        #     self.add_image_to_grid(image_path,accuracy)
+        #     self.update()
         
-
-        self.setCursor(Qt.ArrowCursor)
-        self.btn_photo.setEnabled(True)
-        
-        print(f"Total:{time.time()-xD}")
-        """
+        #TODO OVO DODATI U DISPLAY A NE OVAKO...
         suma = 0
         for i in imageList:
             suma += i[1]
@@ -264,7 +262,6 @@ class GUI(QMainWindow):
         self.btn_photo.setEnabled(True)
         
         print(f"Total:{time.time()-xD}")
-        """
         
     def add_image_to_grid(self, image_path,accuracy):
         pixmap = QPixmap(image_path)
