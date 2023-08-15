@@ -3,8 +3,7 @@ import multiprocessing as mp
 
 def summ_video(video_path, start_frame, end_frame,output_queue):
 
-
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path,cv2.CAP_FFMPEG)
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     
     prev_frame = None
@@ -52,16 +51,14 @@ def summ_video(video_path, start_frame, end_frame,output_queue):
     cap.release()
     output_queue.put(None)
 
-def summ_video_parallel(video_path:str,queue,processes):
+def summ_video_parallel(video_path:str,queue,processes,num_of_processes:int,pool:mp.Pool):
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
-    num_cores = mp.cpu_count()
-    frames_per_core = total_frames // num_cores 
-    print("Nesto se desava")
-    for i in range(0, num_cores):
-        start_frame = i*frames_per_core
-        end_frame = start_frame + frames_per_core if i < num_cores - 1 else total_frames
-        process = mp.Process(target=summ_video, args=(video_path, start_frame, end_frame,queue))
-        processes.append(process)
-        process.start()
+    frames_per_core = total_frames // num_of_processes
+    frame_ranges = []
+    for i in range(num_of_processes):
+        start_frame = i * frames_per_core
+        end_frame = min((i + 1) * frames_per_core, total_frames)
+        frame_ranges.append((video_path, start_frame, end_frame, queue))
+    pool.starmap(summ_video, frame_ranges)

@@ -119,11 +119,22 @@ class ImageAnalyzation:
             vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
             if os.path.exists(vectorPath):
                 with open(vectorPath, "r") as   f:
+            vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
+            if os.path.exists(vectorPath):
+                with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
                 self.wholeVector = True
         elif analyzationType == AnalyzationType.CoderDecoder:
+            self.t = torchvision.transforms.Compose([
+                    torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize((0.5), (0.5))
+                ])
+            self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
+            self.coderDecoderModel.eval()
+            self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
+            self.coderDecoderModel.to(device)
             self.coderDecoder = True    
             vectorPath = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
 
@@ -139,7 +150,7 @@ class ImageAnalyzation:
         
     def runThrough(self):
         self.model.predict(np.zeros((64,64,3)), verbose=False)
-    
+    # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
         data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]

@@ -127,38 +127,41 @@ class GUI(QMainWindow):
         # mp.set_start_method('spawn', force=True)
         xD=time.time()
         img_db.open_connection()
-        for batch in search2(path):
-            for img_path in batch:
-                if not img_path.endswith('.mp4'):
-                    image=cv2.imread(img_path)
-                    image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
-                    image_data.orgImage = img_path
-                    img_db.addImage(image_data)
-                else:
-                    modelsum=0
-                    queue=mp.Queue()
-                    processes=[]
-                    summ_video_parallel(img_path,queue,processes)
-                    i=0
-                    while i!= mp.cpu_count():
-                        frame=queue.get()
-                        if frame is None:
-                            i+=1
-                            print(i)
-                        else:
-                            model=time.time()
-                            image_data = self.img_process.getImageData(frame, imageFeatures=True, objectsFeatures=True)
-                            modelsum+=time.time()-model
-                            image_data.orgImage = img_path
-                            img_db.addImage(image_data)
-                    for process in processes:
-                        process.terminate()
+        num_of_processes=mp.cpu_count()
+        pool=mp.Pool(num_of_processes)
+        with mp.Manager() as manager:
+            for batch in search2(path):
+                for img_path in batch:
+                    if not img_path.endswith('.mp4'):
+                        image=cv2.imread(img_path)
+                        image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
+                        image_data.orgImage = img_path
+                        img_db.addImage(image_data)
+                    else :
+                        modelsum=0
+                        queue=manager.Queue() 
+                        processes=[]
+                        summ_video_parallel(img_path,queue,processes,num_of_processes,pool)
+                        i=0
+                        while i!= num_of_processes:
+                            frame=queue.get()
+                            if frame is None:
+                                i+=1
+                            else:
+                                model=time.time()
+                                image_data = self.img_process.getImageData(frame, imageFeatures=True, objectsFeatures=True)
+                                modelsum+=time.time()-model
+                                image_data.orgImage = img_path
+                                img_db.addImage(image_data,commit_flag=False)
+        pool.close()
+        pool.join()
+        img_db.commit_changes()
         img_db.close_connection()
         print(f"Model:{modelsum}") 
         print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
-        
+    
     def open_folder_dialog(self):
         options = QFileDialog.Options()
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "", options=options)
@@ -248,7 +251,7 @@ class GUI(QMainWindow):
         imageList.sort(key=lambda x: x[1], reverse=True)
 
         print(f"Compare time:{sum}")
-        print(f"Average time per image:{sum/max(1,length)}")
+        print(f"Average time per image:{sum/max(1, length)}")
         print(f"Number of images:{length}")
         
         self.img_list.sort()
@@ -288,7 +291,7 @@ def search2(startDirectory):
             yield_this.append(image_path)
             counter+=1
             
-            if counter==100:
+            if counter==32:
                 counter=0
                 yield yield_this
                 yield_this.clear()
