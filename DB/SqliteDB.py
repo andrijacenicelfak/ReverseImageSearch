@@ -28,7 +28,7 @@ def decode_image_flag(flag):
   
 class ImageDB:
     def __init__(self):
-        print()
+        self.cursor=""
     def open_connection(self):
         self.con = sqlite3.connect("test3.db")
         self.cursor = self.con.cursor()
@@ -63,18 +63,22 @@ class ImageDB:
             print(f'Error occurred: {e}')
 
         
-    def addImage(self,dbstruct:ImageAnalyzationFile.ImageData):#orgImage is image but here is path lol
+    def addImage(self,dbstruct:ImageAnalyzationFile.ImageData,commit_flag=True):#orgImage is image but here is path lol
         try:
             flag0, flag1 = get_image_flag([x.className for x in dbstruct.classes])
             self.cursor.execute('INSERT INTO images (path, flag0, flag1, desc) VALUES (?, ?, ?, ?)', (dbstruct.orgImage, flag0, flag1, pickle.dumps(dbstruct.features)))
             img_id = self.cursor.lastrowid  
             for obj in dbstruct.classes:
                 self.cursor.execute('INSERT INTO objects (image_id, class_name, desc,weight) VALUES (?, ?, ?,?)', (img_id, obj.className, pickle.dumps(obj.features),obj.weight))
-            self.con.commit()                
+            if commit_flag:
+                self.con.commit()                
         except sqlite3.Error as e:
             self.con.rollback()
             print(f'Error occurred: {e}')
-
+    
+    def commit_changes(self):
+        self.con.commit()
+    
     def searchImageByTerm(self, termName) -> list[ImageAnalyzationFile.ImageData]:
             # img.*,
             self.cursor.execute("""
