@@ -107,30 +107,29 @@ class ImageAnalyzation:
         self.vlist = None
         self.wholeVector = False
         self.coderDecoder = False
-        self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
-        self.coderDecoderModel.eval()
-        self.coderDecoderModel.load_state_dict(torch.load(f".\\models\\{coderDecoderModel}.model"))
-        self.coderDecoderModel.to(device)
-
-        self.t = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize((0.5), (0.5))
-        ])
 
         if self.typeDict[analyzationType] != None:
-            mpath = f".\\models\\{model}-{self.typeDict[analyzationType]}.json"
-            if os.path.exists(mpath):
-                with open(mpath, "r") as   f:
+            vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
+            if os.path.exists(vectorPath):
+                with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
                 self.wholeVector = True
         elif analyzationType == AnalyzationType.CoderDecoder:
+            self.t = torchvision.transforms.Compose([
+                    torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize((0.5), (0.5))
+                ])
+            self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
+            self.coderDecoderModel.eval()
+            self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
+            self.coderDecoderModel.to(device)
             self.coderDecoder = True    
-            vectorString = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
+            vectorPath = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
 
-            if os.path.exists(vectorString):
-                with open(vectorString, "r") as   f:
+            if os.path.exists(vectorPath):
+                with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
             else:
                 print(f"There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
@@ -138,9 +137,9 @@ class ImageAnalyzation:
             self.wholeVector = True
         modifyDetectClass()
         self.runThrough()
-
+        
     def runThrough(self):
-        self.model(source=None, verbose=False)
+        self.model.predict(np.zeros((64,64,3)), verbose=False)
     # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
@@ -180,8 +179,8 @@ class ImageAnalyzation:
         if classesData:
             classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
         if imageFeatures:
-                imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
-
+                # imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
+                imgFeatures = self.getFetureVectorAutocoder(image)
         imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
         # histogram=self.generateHistogram(imageData=imgData, img=image)
         # imgData.histogram = histogram
@@ -468,3 +467,14 @@ class ImageAnalyzation:
             return ret
         else:
             return self.getCodedFeatureVector(images=images)
+    
+    def getFetureVectorAutocoder(self, image):
+        images = []
+        for i in range(0,2):
+            size = (128 *(i+1), 128 *(i+1))
+            img = cv2.resize(image, size)
+            for x in range(int(size[0]/128)):
+                for y in range(int(size[1]/128)):
+                    images.append(img[y*128 : (y+1)*128, x*128 : (x+1)*128])
+        imagest = list(map(lambda x: self.t(x), images))
+        return self.coderDecoderModel.encoder(torch.stack(imagest).to(self.device)).cpu().detach().numpy().flatten()

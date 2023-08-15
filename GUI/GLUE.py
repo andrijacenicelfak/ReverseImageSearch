@@ -230,7 +230,7 @@ class GUI(QMainWindow):
             self.img_list.append(img.orgImage, confidence)
         
         print(f"Compare time:{sum}")
-        print(f"Average time per image:{sum/length}")
+        print(f"Average time per image:{sum/max(1, length)}")
         print(f"Number of images:{length}")
         
         self.img_list.sort()
