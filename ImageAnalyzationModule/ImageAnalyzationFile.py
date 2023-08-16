@@ -78,8 +78,8 @@ class ImageData:
         self.features = features
         self.orgImage = orgImage
         self.histogram = histogram
-    def __eq__(self, other) -> bool:
-        return self.classes == other.classes and self.features == other.features and self.orgImage == other.orgImage
+    # def __eq__(self, other) -> bool:
+    #     return self.classes == other.classes and self.features == other.features and self.orgImage == other.orgImage
 class AnalyzationType(Enum):
     FullVector = 0
     BMM = 1
@@ -144,7 +144,7 @@ class ImageAnalyzation:
     def runThrough(self):
         self.model.predict(np.zeros((64,64,3)), verbose=False)
     # Calls the yolo model to get the bounding boxes and classes on the image
-    def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.35) -> list[ImageClassificationData]:
+    def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.55) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
         data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
         imcdata = []
@@ -183,8 +183,8 @@ class ImageAnalyzation:
         if classesData:
             classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
         if imageFeatures:
-                # imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
-                imgFeatures = self.getFetureVectorAutocoder(image)
+            # imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
+            imgFeatures = self.getFetureVectorAutocoder(image)
         imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
         # histogram=self.generateHistogram(imageData=imgData, img=image)
         # imgData.histogram = histogram
@@ -274,6 +274,7 @@ class ImageAnalyzation:
         objectComparison = 1
         # fullWeight = 1
         if compareObjects:
+            #TODO: PROVERI STO SAMO JEDAN OBJEKAT POREDI
             fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
             sumAll = 0
             numOfMatches = 0
@@ -282,7 +283,7 @@ class ImageAnalyzation:
                 if j == -1:
                     continue
                 if stf[j][0] == i:
-                    sumAll += fts[i][1]
+                    sumAll += fts[i][1] if fts[i][1] != stf[j][1] else 1
                     numOfMatches+=1
                     # fullWeight -= imgData1.classes[i].weight
             objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / len(imgData1.classes))
@@ -312,6 +313,8 @@ class ImageAnalyzation:
                     stf[j] = (i, sim)
 
         return (fts, stf)
+    
+
     #Calculates the similarity of objects on image
     def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.69):
         if icd1.features is None or icd2.features is None:
@@ -322,6 +325,8 @@ class ImageAnalyzation:
             return 0
         dist = (1 - cosine(icd1.features, icd2.features))
         return (dist if dist >= treshhold else 0) * icd1.weight
+    
+
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, *, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):
         if icd1.className != icd2.className:

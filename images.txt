@@ -1,0 +1,9 @@
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\1.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\2.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\3.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\91.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\92.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\93.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\94.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\95.jpg
+C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\96.jpg
