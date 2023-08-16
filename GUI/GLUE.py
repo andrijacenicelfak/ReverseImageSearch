@@ -29,7 +29,7 @@ from PyQt5.QtGui import (
     QIcon,
 )
 sys.path.append(".\Video")
-from Video.histoDThresh import  summ_video_parallel
+from Video.histoDThresh import  summ_video_parallel,FrameData
 
 
 class QDisplayListItem(QListWidgetItem):
@@ -127,7 +127,7 @@ class GUI(QMainWindow):
         # mp.set_start_method('spawn', force=True)
         xD=time.time()
         img_db.open_connection()
-        num_of_processes=mp.cpu_count()
+        num_of_processes=mp.cpu_count()*2
         pool=mp.Pool(num_of_processes)
         with mp.Manager() as manager:
             for batch in search2(path):
@@ -141,17 +141,17 @@ class GUI(QMainWindow):
                         modelsum=0
                         queue=manager.Queue() 
                         processes=[]
-                        summ_video_parallel(img_path,queue,processes,num_of_processes,pool)
+                        summ_video_parallel(img_path,queue,num_of_processes,pool)
                         i=0
                         while i!= num_of_processes:
-                            frame=queue.get()
-                            if frame is None:
+                            frame_data=queue.get()
+                            if frame_data is None:
                                 i+=1
                             else:
                                 model=time.time()
-                                image_data = self.img_process.getImageData(frame, imageFeatures=True, objectsFeatures=True)
+                                image_data = self.img_process.getImageData(frame_data.frame, imageFeatures=True, objectsFeatures=True)
+                                image_data.orgImage=img_path+"\\"+str(frame_data.frame_number)
                                 modelsum+=time.time()-model
-                                image_data.orgImage = img_path
                                 img_db.addImage(image_data,commit_flag=False)
         pool.close()
         pool.join()

@@ -1,6 +1,11 @@
 import cv2
 import multiprocessing as mp
 
+class FrameData:
+    def __init__(self, frame, frame_number):
+        self.frame = frame
+        self.frame_number = frame_number
+
 def summ_video(video_path, start_frame, end_frame,output_queue):
 
     cap = cv2.VideoCapture(video_path,cv2.CAP_FFMPEG)
@@ -35,7 +40,8 @@ def summ_video(video_path, start_frame, end_frame,output_queue):
                     
                         if prev_sim < threshold:
                             threshold += THRESHOLD_INC
-                            output_queue.put(frame)
+                            # print(x)
+                            output_queue.put(FrameData(frame=frame,frame_number=x))
                     else:
                         threshold -= THRESHOLD_DEC
 
@@ -51,7 +57,7 @@ def summ_video(video_path, start_frame, end_frame,output_queue):
     cap.release()
     output_queue.put(None)
 
-def summ_video_parallel(video_path:str,queue,processes,num_of_processes:int,pool:mp.Pool):
+def summ_video_parallel(video_path:str,queue,num_of_processes:int,pool:mp.Pool):
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
