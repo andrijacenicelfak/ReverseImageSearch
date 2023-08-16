@@ -9,7 +9,7 @@ import json
 from scipy.spatial.distance import cosine
 import os
 import torchvision
-from ImageAnalyzationModule.ImageAutocoder import ImageAutoencoderConvColor4R5C
+from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoder
 
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
 # The functionality remains the same; it just adds the final part.
@@ -105,10 +105,6 @@ class ImageAnalyzation:
         self.vlist = None
         self.wholeVector = False
         self.coderDecoder = False
-        self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
-        self.coderDecoderModel.eval()
-        self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
-        self.coderDecoderModel.to(device)
 
         self.t = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
@@ -128,10 +124,10 @@ class ImageAnalyzation:
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize((0.5), (0.5))
                 ])
-            self.coderDecoderModel = ImageAutoencoderConvColor4R5C()
+            self.coderDecoderModel = AutoEncoderDecoder()
             self.coderDecoderModel.eval()
             self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
-            self.coderDecoderModel.to(device)
+            self.coderDecoderModel.to(device, non_blocking = True)
             self.coderDecoder = True    
             vectorPath = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
 
@@ -178,7 +174,7 @@ class ImageAnalyzation:
         else:
             img = cv2.resize(image, (128, 128))#.transpose(2, 1, 0)
             img = self.t(img)
-            return self.getCodedFeatureVector(images=img).flatten()
+            return self.getCodedFeatureVector(images=torch.stack([img,])).flatten()
 
     
     def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
@@ -406,7 +402,7 @@ class ImageAnalyzation:
     # gets the feature vector extracted from the encoder of autoencoderdecoder model
     def getCodedFeatureVector(self, images):
         with torch.no_grad():
-            return self.coderDecoderModel.encoder(images.to(self.device)).view((-1, 2048)).cpu().detach().numpy()
+            return self.coderDecoderModel.encode(images.to(self.device, non_blocking = True)).view((-1, 2048)).cpu().detach().numpy()
         
     
     def getImageDataList(self, images, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> list[ImageData]:
@@ -487,4 +483,4 @@ class ImageAnalyzation:
                 for y in range(int(size[1]/128)):
                     images.append(img[y*128 : (y+1)*128, x*128 : (x+1)*128])
         imagest = list(map(lambda x: self.t(x), images))
-        return self.coderDecoderModel.encoder(torch.stack(imagest).to(self.device)).cpu().detach().numpy().flatten()
+        return self.coderDecoderModel.encode(torch.stack(imagest).to(self.device, non_blocking = True)).cpu().detach().numpy().flatten()
