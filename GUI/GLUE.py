@@ -3,7 +3,7 @@ import os
 import time
 import cv2
 import sys
-sys.path.append(r"C:\dev\Demo\Video")
+#sys.path.append(r"C:\dev\Demo\Video")
 from PyQt5.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
@@ -127,7 +127,7 @@ class GUI(QMainWindow):
         # mp.set_start_method('spawn', force=True)
         xD=time.time()
         img_db.open_connection()
-        num_of_processes=mp.cpu_count()*2
+        num_of_processes=mp.cpu_count()
         pool=mp.Pool(num_of_processes)
         with mp.Manager() as manager:
             for batch in search2(path):
@@ -143,21 +143,33 @@ class GUI(QMainWindow):
                         processes=[]
                         summ_video_parallel(img_path,queue,num_of_processes,pool)
                         i=0
-                        while i!= num_of_processes:
+                        
+                        os.makedirs("C:\\kf3", exist_ok=True) ##x
+                        
+                        while i != num_of_processes:
                             frame_data=queue.get()
                             if frame_data is None:
                                 i+=1
                             else:
                                 model=time.time()
+                                video_name = os.path.basename(img_path)##x
                                 image_data = self.img_process.getImageData(frame_data.frame, imageFeatures=True, objectsFeatures=True)
-                                image_data.orgImage=img_path+"\\"+str(frame_data.frame_number)
+
+                                #image_data.orgImage=f"C:/kf3/{video_name}/{str(frame_data.frame_number)}"##x
+                                real_image_path_xd = f"C:\\kf3\\{video_name}\\{str(frame_data.frame_number)}.png"##x
+                                os.makedirs(f"C:\\kf3\\{video_name}", exist_ok=True)##x
+                                cv2.imwrite(real_image_path_xd, frame_data.frame)##x
+                                
+                                image_data.orgImage=real_image_path_xd##x
+                                
                                 modelsum+=time.time()-model
+                                
                                 img_db.addImage(image_data,commit_flag=False)
         pool.close()
         pool.join()
         img_db.commit_changes()
         img_db.close_connection()
-        print(f"Model:{modelsum}") 
+        #print(f"Model:{modelsum}") 
         print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
