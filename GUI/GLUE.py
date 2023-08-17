@@ -32,42 +32,34 @@ from PyQt5.QtGui import (
 sys.path.append(".\Video")
 from Video.histoDThresh import  summ_video_parallel,FrameData
 
-
-class QDisplayListItem(QListWidgetItem):
+class DisplayItem:
     def __init__(self,image_path,accuracy):
-        pixmap=QPixmap(image_path)
-        icon=pixmap.scaled(200,200,Qt.KeepAspectRatio)
-        super().__init__(QIcon(icon),"")
-        self.setData(Qt.UserRole,image_path)
+        self.image_path=image_path
         self.accuracy=accuracy
-        
-    def __lt__(self,other):
-        return self.accuracy<other.accuracy
 
 class DisplayList:
 
     def __init__(self):
-        self.image_paths=[]
-        self.accuracies=[]
-    
+        self.items=[]
+
     def __iter__(self):
-        return iter(zip(self.image_paths,self.accuracies))
+        return iter(self.items)
     
-    def append(self,image_path,accuracy):
-        self.image_paths.append(image_path)
-        self.accuracies.append(accuracy)
-        
-    def sort(self):
-        #TODO : OVDE ONO STO SAM DOLE STAVIO I NECE
-        temporary = sorted(zip(self.image_paths, self.accuracies), key=lambda x: x[1], reverse=True)
-        for ind, (img_path, acc) in enumerate(temporary):
-            self.image_paths[ind] = img_path
-            self.accuracies[ind] = acc
-    
+    def append(self,item):
+        self.items.append(item)
+
+    def filter_sort(self,val):
+        self.items=[item for item in self.items if item.accuracy>=val]
+        self.items.sort(key=lambda item: item.accuracy,reverse=True)       
+ 
     def clear(self):
-        self.image_paths.clear()
-        self.accuracies.clear()
-        
+        self.items.clear()
+
+    def average(self):
+        suma = 0
+        for i in self.items:
+            suma += i.accuracy
+        return suma / max(1, len(self.items))
 class MyThread(QRunnable):
     
     def __init__(self,function,args):
@@ -97,7 +89,7 @@ class GUI(QMainWindow):
         self.selected_folder_path=None
         self.img_db=img_db
         self.img_process=img_proc
-        self.img_list=DisplayList()
+        self.image_list=DisplayList()
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.thread_manager=MyThreadManager()
         
@@ -223,7 +215,7 @@ class GUI(QMainWindow):
     
     def display_results(self,photo_path,img_db):
         xD=time.time()
-        self.img_list.clear()
+        self.image_list.clear()
         self.search_results_list.clear()
         
         img = cv2.imread(photo_path)
@@ -235,42 +227,24 @@ class GUI(QMainWindow):
 
         length=len(imgs)
         sum=0
-        imageList = []
+        image_list=DisplayList() 
         for img in imgs:
             start=time.time()
             confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
             sum+=time.time()-start
-            self.img_list.append(img.orgImage, confidence)
-            imageList.append((img.orgImage, confidence))
+            self.image_list.append(DisplayItem(img.orgImage, confidence))
         
-        # print(f"Compare time:{sum}")
-        # print(f"Average time per image:{sum/length}")
-        # print(f"Number of images:{length}")
         
-        # self.img_list.sort()
-        # for index,(image_path,accuracy) in enumerate(self.img_list):
-        #     self.add_image_to_grid(image_path,accuracy)
-        #     self.update()
+        average = self.image_list.average()
+        self.image_list.filter_sort(average)
         
-        #TODO OVO DODATI U DISPLAY A NE OVAKO...
-        suma = 0
-        for i in imageList:
-            suma += i[1]
-        el = suma / max(1, len(imageList))
-        print(f"EL {el}")
-        imageList = list(filter(lambda x: x[1] > (el), imageList))
-        imageList.sort(key=lambda x: x[1], reverse=True)
-
         print(f"Compare time:{sum}")
         print(f"Average time per image:{sum/max(1, length)}")
         print(f"Number of images:{length}")
-        
-        self.img_list.sort()
-
-        for image_path,accuracy in imageList:
-            self.add_image_to_grid(image_path)
-            self.update()
-        
+            
+        for item in self.image_list:
+            self.add_image_to_grid(item.image_path)
+            # self.update()
 
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
