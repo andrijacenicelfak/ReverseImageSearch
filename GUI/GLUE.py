@@ -1,3 +1,4 @@
+import copy
 import multiprocessing as mp
 import os
 import time
@@ -124,35 +125,33 @@ class GUI(QMainWindow):
     
 
     def index_folder(self,path,img_db):
-        # mp.set_start_method('spawn', force=True)
         xD=time.time()
         img_db.open_connection()
-        num_of_processes=mp.cpu_count()
+        num_of_processes=mp.cpu_count()//2
         pool=mp.Pool(num_of_processes)
         with mp.Manager() as manager:
             for batch in search2(path):
                 for img_path in batch:
-                    if not img_path.endswith('.mp4'):
+                    queue=manager.Queue() 
+                    if '.mp4' not in img_path:
+                        print(f"File path IMAGE:{img_path}")
                         image=cv2.imread(img_path)
                         image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
                         image_data.orgImage = img_path
-                        img_db.addImage(image_data)
+                        img_db.addImage(image_data,commit_flag=False)
                     else :
+                        print(f"File path VIDEO:{img_path}")
                         modelsum=0
-                        queue=manager.Queue() 
-                        processes=[]
                         summ_video_parallel(img_path,queue,num_of_processes,pool)
                         i=0
-                        
                         os.makedirs("C:\\kf3", exist_ok=True) ##x
-                        
                         while i != num_of_processes:
                             frame_data=queue.get()
                             if frame_data is None:
                                 i+=1
                             else:
                                 model=time.time()
-                                video_name = os.path.basename(img_path)##x
+                                video_name = os.path.basename(img_path[0])##x
                                 image_data = self.img_process.getImageData(frame_data.frame, imageFeatures=True, objectsFeatures=True)
 
                                 #image_data.orgImage=f"C:/kf3/{video_name}/{str(frame_data.frame_number)}"##x
@@ -169,7 +168,7 @@ class GUI(QMainWindow):
         pool.join()
         img_db.commit_changes()
         img_db.close_connection()
-        #print(f"Model:{modelsum}") 
+        # print(f"Model:{modelsum}") 
         print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
@@ -268,8 +267,8 @@ class GUI(QMainWindow):
         
         self.img_list.sort()
 
-        for (image_path,accuracy) in imageList:
-            self.add_image_to_grid(image_path,accuracy)
+        for image_path,accuracy in imageList:
+            self.add_image_to_grid(image_path)
             self.update()
         
 
@@ -278,7 +277,7 @@ class GUI(QMainWindow):
         
         print(f"Total:{time.time()-xD}")
         
-    def add_image_to_grid(self, image_path,accuracy):
+    def add_image_to_grid(self, image_path):
         pixmap = QPixmap(image_path)
         icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         item = QListWidgetItem(QIcon(icon),"")
@@ -296,16 +295,19 @@ def search2(startDirectory):
     counter=0
     for file_name in file_list:
         if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.mp4')):
-            
             startDirectory = os.path.normpath(startDirectory)
             image_path = os.path.join(startDirectory , file_name)
             
-            yield_this.append(image_path)
-            counter+=1
+            if image_path.endswith('.mp4'):
+                yield [image_path]
+            else:
+                yield_this.append(image_path)
+                counter+=1
+                    
+                if counter==128:
+                    counter=0
+                    yield yield_this
+                    yield_this.clear()
             
-            if counter==32:
-                counter=0
+            if yield_this:
                 yield yield_this
-                yield_this.clear()
-    
-    yield yield_this
