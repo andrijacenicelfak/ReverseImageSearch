@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
 )
 if __name__=='__main__':
     mp.set_start_method('spawn')
-    img_analyzer=ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel=r"1A-4")
+    img_analyzer=ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-15")
     img_db=ImageDB()
     app = QApplication(sys.argv)
     window = GLUE.GUI(img_db,img_analyzer)

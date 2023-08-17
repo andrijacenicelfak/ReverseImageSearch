@@ -1,3 +1,4 @@
+from functools import reduce
 import multiprocessing as mp
 import os
 import time
@@ -149,7 +150,7 @@ class GUI(QMainWindow):
                                 i+=1
                             else:
                                 model=time.time()
-                                image_data = self.img_process.getImageData(frame_data.frame, imageFeatures=True, objectsFeatures=True)
+                                image_data = self.img_process.getImageData(frame_data.frame, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.25)
                                 image_data.orgImage=img_path+"\\"+str(frame_data.frame_number)
                                 modelsum+=time.time()-model
                                 img_db.addImage(image_data,commit_flag=False)
@@ -157,7 +158,7 @@ class GUI(QMainWindow):
         pool.join()
         img_db.commit_changes()
         img_db.close_connection()
-        print(f"Model:{modelsum}") 
+        # print(f"Model:{modelsum}") 
         print(f"Total time:{time.time()-xD}")
         self.setCursor(Qt.ArrowCursor)
         self.btn_folder.setEnabled(True)
@@ -216,8 +217,8 @@ class GUI(QMainWindow):
         self.search_results_list.clear()
         
         img = cv2.imread(photo_path)
-        image_data = self.img_process.getImageData(img ,imageFeatures=True, objectsFeatures=True)
-
+        image_data = self.img_process.getImageData(img ,classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.55)
+        print(list(map(lambda x: x.className, image_data.classes)))
         img_db.open_connection()
         imgs = img_db.search_by_image([ x.className for x in image_data.classes])#sve slike sa tom odrednjemo klasom
         img_db.close_connection()
@@ -227,10 +228,11 @@ class GUI(QMainWindow):
         imageList = []
         for img in imgs:
             start=time.time()
-            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
+            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True, minObjWeight=0.0)
             sum+=time.time()-start
-            self.img_list.append(img.orgImage, confidence)
-            imageList.append((img.orgImage, confidence))
+            if confidence > 0.0001:
+                # self.img_list.append(img.orgImage, confidence)
+                imageList.append((img, confidence))
         
         # print(f"Compare time:{sum}")
         # print(f"Average time per image:{sum/length}")
@@ -243,9 +245,12 @@ class GUI(QMainWindow):
         
         #TODO OVO DODATI U DISPLAY A NE OVAKO...
         suma = 0
+        m = 0
         for i in imageList:
+            m = max(m, i[1])
             suma += i[1]
-        el = suma / max(1, len(imageList))
+        suma -= m
+        el = suma / max(1, len(imageList)-1)
         print(f"EL {el}")
         imageList = list(filter(lambda x: x[1] > (el), imageList))
         imageList.sort(key=lambda x: x[1], reverse=True)
@@ -266,11 +271,11 @@ class GUI(QMainWindow):
         
         print(f"Total:{time.time()-xD}")
         
-    def add_image_to_grid(self, image_path,accuracy):
-        pixmap = QPixmap(image_path)
+    def add_image_to_grid(self, image,accuracy):
+        pixmap = QPixmap(image.orgImage)
         icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        item = QListWidgetItem(QIcon(icon),"")
-        item.setData(Qt.UserRole, image_path)
+        item = QListWidgetItem(QIcon(icon), f"{accuracy} : " + str(reduce(lambda a,b: a +", "+ b.className, image.classes, "")))
+        item.setData(Qt.UserRole, image.orgImage)
         self.search_results_list.addItem(item)
 
     def open_selected_image(self, item):

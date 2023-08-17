@@ -1,4 +1,5 @@
 from enum import Enum
+import time
 import cv2
 from ultralytics import YOLO
 import numpy as np
@@ -177,14 +178,18 @@ class ImageAnalyzation:
             return self.getCodedFeatureVector(images=torch.stack([img,])).flatten()
 
     
-    def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> ImageData:
+    def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, classesConfidence = 0.65, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
         if classesData:
-            classes = self.getObjectClasses(image, objectFeatures=objectsFeatures)
+            # ctime = time.time()
+            classes = self.getObjectClasses(image, objectFeatures=objectsFeatures, conf=classesConfidence)
+            # print(f"CTime : {time.time()-ctime}")
         if imageFeatures:
             # imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
+            # ftime = time.time()
             imgFeatures = self.getFetureVectorAutocoder(image)
+            # print(f"FVTime : {time.time()-ftime}")
         imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
         # histogram=self.generateHistogram(imageData=imgData, img=image)
         # imgData.histogram = histogram
@@ -270,11 +275,31 @@ class ImageAnalyzation:
     # compares the images by calculating the max object matching and similarity between images
     # objectComparison = the sum of all the max matches between objects, if two objects are most simmilar 
     # with each other their simmilarity goes in the sum, the objects that don't match don't
-    def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, histogramComparison = False):
+    def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, minObjWeight = 0.05):
+
+        imageComparison = 1
+
+        if compareWholeImages:
+            imageComparison = 1 - cosine(imgData1.features, imgData2.features)
+        
+        if imageComparison == 1:
+            return 1000
+
+        imgData1.classes = list(filter(lambda x: x.weight > minObjWeight, imgData1.classes))
+        imgData2.classes = list(filter(lambda x: x.weight > minObjWeight, imgData2.classes))
+
+        numberOfObjects = 0
+
+        objects1 = list(map(lambda x: x.className, imgData1.classes))
+        objects2 = list(map(lambda x: x.className, imgData2.classes))
+        
+        for o in objects1:
+            if o in objects2:
+                numberOfObjects +=1
+        
         objectComparison = 1
         # fullWeight = 1
         if compareObjects:
-            #TODO: PROVERI STO SAMO JEDAN OBJEKAT POREDI
             fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
             sumAll = 0
             numOfMatches = 0
@@ -283,17 +308,15 @@ class ImageAnalyzation:
                 if j == -1:
                     continue
                 if stf[j][0] == i:
-                    sumAll += fts[i][1] if fts[i][1] != stf[j][1] else 1
+                    sumAll += fts[i][1] / imgData1.classes[i].weight * imgData2.classes[j].weight
                     numOfMatches+=1
                     # fullWeight -= imgData1.classes[i].weight
-            objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / len(imgData1.classes))
-        
-        imageComparison = 1
+            if abs(sum(map(lambda x: x.weight, imgData2.classes)) - sumAll) < 1e-6:
+                objectComparison = 1
+            else:
+                objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
 
-        if compareWholeImages:
-            imageComparison = 1 - cosine(imgData1.features, imgData2.features)
-
-        return objectComparison * imageComparison #- max(self.compareHistograms(imgData1.histogram, imgData2.histogram) * (fullWeight), 0)
+        return objectComparison * imageComparison * ((numberOfObjects / max(1, len(objects1)))**2)
     
     #Generates the dictionarys of the object similarity
     def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData) -> (dict, dict):
@@ -316,7 +339,7 @@ class ImageAnalyzation:
     
 
     #Calculates the similarity of objects on image
-    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.69):
+    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.1):
         if icd1.features is None or icd2.features is None:
             raise Exception("Feature vector is None!")
         if icd1.weight is None or icd2.weight is None:
@@ -324,7 +347,10 @@ class ImageAnalyzation:
         if icd1.className != icd2.className:
             return 0
         dist = (1 - cosine(icd1.features, icd2.features))
-        return (dist if dist >= treshhold else 0) * icd1.weight
+        #The values seem to be between 0.8 - 1.0
+        dist = (dist - 0.8) * 5
+        #Values 0.0 - 1.0
+        return (dist if dist >= treshhold else 0)
     
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
