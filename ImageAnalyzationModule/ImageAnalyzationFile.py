@@ -277,14 +277,14 @@ class ImageAnalyzation:
     # with each other their simmilarity goes in the sum, the objects that don't match don't
     def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, minObjWeight = 0.05):
 
+        #comparing whole images, if match return
         imageComparison = 1
-
         if compareWholeImages:
             imageComparison = 1 - cosine(imgData1.features, imgData2.features)
-        
-        if imageComparison == 1:
-            return 1000
+            if imageComparison == 1:
+                return 100
 
+        #check if the classes match, need to have simmilar classes
         imgData1.classes = list(filter(lambda x: x.weight > minObjWeight, imgData1.classes))
         imgData2.classes = list(filter(lambda x: x.weight > minObjWeight, imgData2.classes))
 
@@ -293,12 +293,19 @@ class ImageAnalyzation:
         objects1 = list(map(lambda x: x.className, imgData1.classes))
         objects2 = list(map(lambda x: x.className, imgData2.classes))
         
+        maxWeightComponent = 1
+        
         for o in objects1:
             if o in objects2:
                 numberOfObjects +=1
         
+        #If the class with the most weight does not exist in the second image lower the simmilarity
+        maxWeightClass = max(imgData1.classes, key=lambda x: x.weight if x.className != 'person' else 0)
+        if maxWeightClass.className not in objects2:
+            maxWeightComponent = 1e-5
+        
+        #compare the objects within the image
         objectComparison = 1
-        # fullWeight = 1
         if compareObjects:
             fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
             sumAll = 0
@@ -308,15 +315,11 @@ class ImageAnalyzation:
                 if j == -1:
                     continue
                 if stf[j][0] == i:
-                    sumAll += fts[i][1] / imgData1.classes[i].weight * imgData2.classes[j].weight
+                    sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
                     numOfMatches+=1
-                    # fullWeight -= imgData1.classes[i].weight
-            if abs(sum(map(lambda x: x.weight, imgData2.classes)) - sumAll) < 1e-6:
-                objectComparison = 1
-            else:
-                objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
+            objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
 
-        return objectComparison * imageComparison * ((numberOfObjects / max(1, len(objects1)))**2)
+        return objectComparison * imageComparison * ((numberOfObjects / max(1, len(objects1)))**2) * maxWeightComponent
     
     #Generates the dictionarys of the object similarity
     def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData) -> (dict, dict):
