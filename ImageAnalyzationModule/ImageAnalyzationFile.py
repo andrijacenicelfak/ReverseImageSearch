@@ -146,7 +146,8 @@ class ImageAnalyzation:
             for d in range(len(imcdata)):
                 imcdata[d].features = self.getFeatureVectorFromBounds(image, imcdata[d].boundingBox)
         return imcdata
-    
+
+    # Extracts feature vector from yolo model   
     def getFeatureVector(self, image, *, wholeVector = False) -> list:
         self.value = None
         def setValue(x : any):
@@ -156,6 +157,7 @@ class ImageAnalyzation:
         self.model.predict(img2, verbose=False)
         return self.reduceData(np.array(self.value.cpu()).flatten(), wholeVector)
     
+    #Extracts feature vector from the object(bounding box), can extract from yolo and from AutoEncoderDecoder
     def getFeatureVectorFromBounds(self, image, boundigBox : BoundingBox = None, wholeVector = False) -> list:
         image = image[boundigBox.y1 : boundigBox.y2, boundigBox.x1 : boundigBox.x2]
         if not self.coderDecoder:
@@ -165,6 +167,7 @@ class ImageAnalyzation:
             img = self.t(img)
             return self.getCodedFeatureVector(images=torch.stack([img,])).flatten()
 
+    # returns ImageData with the selected params
     def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, classesConfidence = 0.65, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
@@ -265,6 +268,7 @@ class ImageAnalyzation:
     # compares the images by calculating the max object matching and similarity between images
     # objectComparison = the sum of all the max matches between objects, if two objects are most simmilar 
     # with each other their simmilarity goes in the sum, the objects that don't match don't
+    # if there is a match in comparing whole images the func returns 100
     def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, minObjWeight = 0.05):
 
         #comparing whole images, if match return
@@ -295,6 +299,7 @@ class ImageAnalyzation:
         
         if len(imgData1.classes) == 0 and len(imgData2.classes) == 0:
             compareObjects = False
+            
         #compare the objects within the image
         objectComparison = 1
         if compareObjects:
@@ -429,7 +434,7 @@ class ImageAnalyzation:
     # gets the feature vector extracted from the encoder of autoencoderdecoder model
     def getCodedFeatureVector(self, images):
         with torch.no_grad():
-            return self.coderDecoderModel.encode(images.to(self.device, non_blocking = True)).view((-1, 2048)).cpu().detach().numpy()
+            return self.coderDecoderModel.encode(images.to(self.device, non_blocking = True)).view((-1, self.coderDecoderModel.vectorLenght)).cpu().detach().numpy()
         
     def getImageDataList(self, images, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> list[ImageData]:
         classes = []
