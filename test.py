@@ -7,7 +7,7 @@ def objectComparisonTest():
     fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Documents\\dev\\ImageClassification\\YOLOv8\\imgs")
     paths = fe.search()
 
-    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-14")
+    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
     data: list[ImageData] = []
     for p in paths:
         data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True))
@@ -41,7 +41,7 @@ def imageComparisonTest():
     fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
     paths = fe.search()
 
-    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-15")
+    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
     data: list[ImageData] = []
     for p in paths:
         data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True, classesConfidence=0.25))
@@ -61,5 +61,5 @@ def imageComparisonTest():
     return
 
 if __name__ == "__main__":
-    imageComparisonTest()
+    objectComparisonTest()
     print("Done")

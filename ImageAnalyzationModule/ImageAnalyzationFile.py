@@ -96,7 +96,7 @@ class ImageAnalyzation:
         AnalyzationType.CoderDecoder : None
         }
     
-    def __init__(self, model : str, *, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.Cut, coderDecoderModel : str = None):
+    def __init__(self, model : str, *, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.CoderDecoder, aedType : type = AutoEncoderDecoder, coderDecoderModel : str = None):
         model = model.split(".")[0]
         self.model = YOLO(model)
         self.model.to(device)
@@ -104,46 +104,34 @@ class ImageAnalyzation:
         self.modelNames = self.model.names
         self.modelName = model
         self.vlist = None
-        self.wholeVector = False
+        self.wholeVector = True
         self.coderDecoder = False
 
-        self.t = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize((0.5), (0.5))
-        ])
-
-        if self.typeDict[analyzationType] != None:
+        if analyzationType != AnalyzationType.FullVector and analyzationType != AnalyzationType.CoderDecoder:
             vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
             if os.path.exists(vectorPath):
                 with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
+                self.wholeVector = False
+                modifyDetectClass()
             else:
                 print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
-                self.wholeVector = True
         elif analyzationType == AnalyzationType.CoderDecoder:
             self.t = torchvision.transforms.Compose([
                     torchvision.transforms.ToTensor(),
-                    torchvision.transforms.Normalize((0.5), (0.5))
+                    torchvision.transforms.Normalize((0.5),(0.5))
                 ])
-            self.coderDecoderModel = AutoEncoderDecoder()
+            self.coderDecoderModel = aedType()
             self.coderDecoderModel.eval()
             self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
             self.coderDecoderModel.to(device, non_blocking = True)
-            self.coderDecoder = True    
-            vectorPath = f'.\\models\\{model}-{self.typeDict[AnalyzationType.Cut]}.json'
-
-            if os.path.exists(vectorPath):
-                with open(vectorPath, "r") as   f:
-                    self.vlist = json.load(fp=f)
-            else:
-                print(f"There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
-        else:
-            self.wholeVector = True
-        modifyDetectClass()
+            self.coderDecoder = True
         self.runThrough()
-        
+
+    # To load the model on GPU run a small image through
     def runThrough(self):
         self.model.predict(np.zeros((64,64,3)), verbose=False)
+
     # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.55) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
@@ -177,7 +165,6 @@ class ImageAnalyzation:
             img = self.t(img)
             return self.getCodedFeatureVector(images=torch.stack([img,])).flatten()
 
-    
     def getImageData(self, image, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, classesConfidence = 0.65, wholeVector = False)-> ImageData:
         classes = None
         imgFeatures = None
@@ -186,10 +173,13 @@ class ImageAnalyzation:
             classes = self.getObjectClasses(image, objectFeatures=objectsFeatures, conf=classesConfidence)
             # print(f"CTime : {time.time()-ctime}")
         if imageFeatures:
-            # imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
             # ftime = time.time()
-            imgFeatures = self.getFetureVectorAutocoder(image)
+            if self.coderDecoder:
+                imgFeatures = self.getFetureVectorAutocoder(image)
+            else:
+                imgFeatures = self.getFeatureVector(image, wholeVector=wholeVector)
             # print(f"FVTime : {time.time()-ftime}")
+            
         imgData = ImageData(classes= classes, features= imgFeatures, orgImage= image if returnOriginalImage else None)
         # histogram=self.generateHistogram(imageData=imgData, img=image)
         # imgData.histogram = histogram
@@ -206,7 +196,6 @@ class ImageAnalyzation:
         cv2.normalize(h, h)
         return h
         
-
     def compareHistograms(self, h1, h2):
         return 1 - cv2.compareHist(h1, h2, cv2.HISTCMP_BHATTACHARYYA)
 
@@ -225,6 +214,7 @@ class ImageAnalyzation:
     # numOfDiffObj is number of classes that appear in on image and not the other and is they do appear number of different number of apperances
     # wholeImageSimilarity histogram comparison and descriptor comaparison
     def compareImagesOld(self, imgData1 : ImageData, imgData2: ImageData, *, compareWholeImages = False, compareImageObjects = False, compareHistograms = True, containAllObjects = False):
+        print("[DEPRICATED] Using depricated code : comapareImagesOld")
         if imgData1.orgImage is None or imgData2.orgImage is None:
             raise Exception("Image data should contain the original image for comparesons")
         
@@ -288,22 +278,23 @@ class ImageAnalyzation:
         imgData1.classes = list(filter(lambda x: x.weight > minObjWeight, imgData1.classes))
         imgData2.classes = list(filter(lambda x: x.weight > minObjWeight, imgData2.classes))
 
-        numberOfObjects = 0
+        numberOfObjects = 1e-4
 
         objects1 = list(map(lambda x: x.className, imgData1.classes))
         objects2 = list(map(lambda x: x.className, imgData2.classes))
-        
-        maxWeightComponent = 1
         
         for o in objects1:
             if o in objects2:
                 numberOfObjects +=1
         
         #If the class with the most weight does not exist in the second image lower the simmilarity
+        maxWeightComponent = 1
         maxWeightClass = max(imgData1.classes, key=lambda x: x.weight if x.className != 'person' else 0)
         if maxWeightClass.className not in objects2:
-            maxWeightComponent = 1e-5
+            maxWeightComponent = 1e-2
         
+        if len(imgData1.classes) == 0 and len(imgData2.classes) == 0:
+            compareObjects = False
         #compare the objects within the image
         objectComparison = 1
         if compareObjects:
@@ -321,7 +312,9 @@ class ImageAnalyzation:
 
         return objectComparison * imageComparison * ((numberOfObjects / max(1, len(objects1)))**2) * maxWeightComponent
     
-    #Generates the dictionarys of the object similarity
+    # Generates the dictionaries for comparing classification data
+    # fts (first to second) generates the indexes of most simmilar objects for the list of objects from the first imgData
+    # stf (second to first) generates the indexes of most simmilar object for the list of objects from the seconda imgData
     def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData) -> (dict, dict):
         fts = dict()
         stf = dict()
@@ -339,7 +332,6 @@ class ImageAnalyzation:
                     stf[j] = (i, sim)
 
         return (fts, stf)
-    
 
     #Calculates the similarity of objects on image
     def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.1):
@@ -354,10 +346,11 @@ class ImageAnalyzation:
         dist = (dist - 0.8) * 5
         #Values 0.0 - 1.0
         return (dist if dist >= treshhold else 0)
-    
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, *, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):
+        print("[DEPRICATED] Using depricated code : compareImageClassificationDataOld")
+        
         if icd1.className != icd2.className:
             return 0
         
@@ -438,7 +431,6 @@ class ImageAnalyzation:
         with torch.no_grad():
             return self.coderDecoderModel.encode(images.to(self.device, non_blocking = True)).view((-1, 2048)).cpu().detach().numpy()
         
-    
     def getImageDataList(self, images, *, classesData = True, imageFeatures = False, objectsFeatures = False, returnOriginalImage = False, wholeVector = False)-> list[ImageData]:
         classes = []
         imgFeatures = []
