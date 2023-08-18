@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
 
 class VideoPlayer(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, fileName="", parent=None):
         super(VideoPlayer, self).__init__(parent)
 
         self.mediaPlayer = QMediaPlayer(None, QMediaPlayer.VideoSurface)
@@ -58,6 +58,13 @@ class VideoPlayer(QWidget):
         self.mediaPlayer.durationChanged.connect(self.durationChanged)
         self.mediaPlayer.error.connect(self.handleError)
         self.statusBar.showMessage("Ready")
+        
+        if fileName != '':
+            self.mediaPlayer.setMedia(
+                    QMediaContent(QUrl.fromLocalFile(fileName)))
+            self.playButton.setEnabled(True)
+            self.statusBar.showMessage(fileName)
+            self.play()
 
     def abrir(self):
         fileName, _ = QFileDialog.getOpenFileName(self, "Selecciona los mediose",
@@ -76,7 +83,7 @@ class VideoPlayer(QWidget):
             self.mediaPlayer.pause()
             print(self.mediaPlayer.position())
         else:
-            self.mediaPlayer.setPosition(1)
+            #self.mediaPlayer.setPosition(500)
             self.mediaPlayer.play()
 
     def mediaStateChanged(self, state):

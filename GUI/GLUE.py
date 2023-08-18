@@ -4,6 +4,7 @@ import os
 import time
 import cv2
 import sys
+from GUI.VideoPlayerFile_old import VideoPlayer
 #sys.path.append(r"C:\dev\Demo\Video")
 from PyQt5.QtWidgets import (
     QMainWindow,
@@ -60,6 +61,7 @@ class DisplayList:
         for i in self.items:
             suma += i.accuracy
         return suma / max(1, len(self.items))
+
 class MyThread(QRunnable):
     
     def __init__(self,function,args):
@@ -92,7 +94,9 @@ class GUI(QMainWindow):
         self.image_list=DisplayList()
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.thread_manager=MyThreadManager()
-        
+        self.num_of_processes=mp.cpu_count()
+        self.pool=mp.Pool(self.num_of_processes) 
+        self.video_player = None      
     def initUI(self):
         self.setWindowTitle("GLUEE")
         self.setGeometry(100,100,1000,600)
@@ -119,8 +123,7 @@ class GUI(QMainWindow):
     def index_folder(self,path,img_db):
         xD=time.time()
         img_db.open_connection()
-        num_of_processes=mp.cpu_count()//2
-        pool=mp.Pool(num_of_processes)
+        
         with mp.Manager() as manager:
             for batch in search2(path):
                 for img_path in batch:
@@ -134,30 +137,26 @@ class GUI(QMainWindow):
                     else :
                         print(f"File path VIDEO:{img_path}")
                         modelsum=0
-                        summ_video_parallel(img_path,queue,num_of_processes,pool)
+                        summ_video_parallel(img_path,queue,self.num_of_processes,self.pool)
                         i=0
                         os.makedirs("C:\\kf3", exist_ok=True) ##x
-                        while i != num_of_processes:
+                        while i != self.num_of_processes:
                             frame_data=queue.get()
                             if frame_data is None:
                                 i+=1
                             else:
-                                model=time.time()
-                                video_name = os.path.basename(img_path[0])##x
+                                video_name = os.path.basename(img_path)##x
                                 image_data = self.img_process.getImageData(frame_data.frame, imageFeatures=True, objectsFeatures=True)
-
-                                #image_data.orgImage=f"C:/kf3/{video_name}/{str(frame_data.frame_number)}"##x
-                                real_image_path_xd = f"C:\\kf3\\{video_name}\\{str(frame_data.frame_number)}.png"##x
+                                fake_image_path = f"C:\\kf3\\{video_name}\\{str(frame_data.frame_number)}.png"##x
+                                real_video_path_plus_image = img_path + f"\\{str(frame_data.frame_number)}.png"
                                 os.makedirs(f"C:\\kf3\\{video_name}", exist_ok=True)##x
-                                cv2.imwrite(real_image_path_xd, frame_data.frame)##x
+                                cv2.imwrite(fake_image_path, frame_data.frame)##x
                                 
-                                image_data.orgImage=real_image_path_xd##x
-                                
-                                modelsum+=time.time()-model
+                                image_data.orgImage=real_video_path_plus_image##x
                                 
                                 img_db.addImage(image_data,commit_flag=False)
-        pool.close()
-        pool.join()
+        # self.pool.close()
+        # self.pool.join()
         img_db.commit_changes()
         img_db.close_connection()
         # print(f"Model:{modelsum}") 
@@ -217,7 +216,6 @@ class GUI(QMainWindow):
         xD=time.time()
         self.image_list.clear()
         self.search_results_list.clear()
-        
         img = cv2.imread(photo_path)
         image_data = self.img_process.getImageData(img ,imageFeatures=True, objectsFeatures=True)
 
@@ -227,11 +225,10 @@ class GUI(QMainWindow):
 
         length=len(imgs)
         sum=0
-        image_list=DisplayList() 
         for img in imgs:
-            start=time.time()
+            start=time.perf_counter()
             confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
-            sum+=time.time()-start
+            sum+=time.perf_counter()-start
             self.image_list.append(DisplayItem(img.orgImage, confidence))
         
         
@@ -243,6 +240,7 @@ class GUI(QMainWindow):
         print(f"Number of images:{length}")
             
         for item in self.image_list:
+            
             self.add_image_to_grid(item.image_path)
             # self.update()
 
@@ -251,8 +249,15 @@ class GUI(QMainWindow):
         
         print(f"Total:{time.time()-xD}")
         
-    def add_image_to_grid(self, image_path):
-        pixmap = QPixmap(image_path)
+    def add_image_to_grid(self, image_path:str):
+        
+        paths = image_path.split('\\')
+        
+        if paths[-2].lower().endswith(('.mp4',)):
+            not_video_path =  f"C:\\kf3\\{paths[-2]}\\{paths[-1]}"
+        
+        pixmap = QPixmap(not_video_path)
+        
         icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         item = QListWidgetItem(QIcon(icon),"")
         item.setData(Qt.UserRole, image_path)
@@ -260,9 +265,25 @@ class GUI(QMainWindow):
 
     def open_selected_image(self, item):
         image_path = item.data(Qt.UserRole)
-        if image_path:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(image_path))
+        print(image_path)
+        paths = image_path.rsplit("\\", 1)
+        if paths[0].lower().endswith(('.mp4',)):              
+            print(paths)
+            frame_num = paths[1].split('.')[0]
+            print(frame_num)
+            self.start_player(paths[0], (int(frame_num) // 30) * 1000)
+            # self.thread_manager.start_thread(function=self.start_player ,args=(paths[0],))
+        else:
+            if image_path:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(image_path))    
             
+    def start_player(self, video_path, position):
+        self.video_player = VideoPlayer(fileName=video_path)
+        self.video_player.setWindowTitle("Player")
+        self.video_player.resize(600, 400)
+        self.video_player.mediaPlayer.setPosition(position)
+        self.video_player.show() 
+        # time.sleep(100)     
 def search2(startDirectory):
     file_list = os.listdir(startDirectory)
     yield_this=[]
