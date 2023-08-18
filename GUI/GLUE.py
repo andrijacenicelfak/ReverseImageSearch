@@ -1,10 +1,12 @@
 from functools import reduce
+import copy
 import multiprocessing as mp
 import os
 import time
 import cv2
 import sys
-sys.path.append(r"C:\dev\Demo\Video")
+from GUI.VideoPlayerFile_old import VideoPlayer
+#sys.path.append(r"C:\dev\Demo\Video")
 from PyQt5.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
@@ -32,42 +34,39 @@ from PyQt5.QtGui import (
 sys.path.append(".\Video")
 from Video.histoDThresh import  summ_video_parallel,FrameData
 
-
-class QDisplayListItem(QListWidgetItem):
+class DisplayItem:
     def __init__(self,image_path,accuracy):
-        pixmap=QPixmap(image_path)
-        icon=pixmap.scaled(200,200,Qt.KeepAspectRatio)
-        super().__init__(QIcon(icon),"")
-        self.setData(Qt.UserRole,image_path)
+        self.image_path=image_path
         self.accuracy=accuracy
-        
-    def __lt__(self,other):
-        return self.accuracy<other.accuracy
 
 class DisplayList:
 
     def __init__(self):
-        self.image_paths=[]
-        self.accuracies=[]
-    
+        self.items=[]
+
     def __iter__(self):
-        return iter(zip(self.image_paths,self.accuracies))
+        return iter(self.items)
     
-    def append(self,image_path,accuracy):
-        self.image_paths.append(image_path)
-        self.accuracies.append(accuracy)
-        
-    def sort(self):
-        #TODO : OVDE ONO STO SAM DOLE STAVIO I NECE
-        temporary = sorted(zip(self.image_paths, self.accuracies), key=lambda x: x[1], reverse=True)
-        for ind, (img_path, acc) in enumerate(temporary):
-            self.image_paths[ind] = img_path
-            self.accuracies[ind] = acc
-    
+    def append(self,item):
+        self.items.append(item)
+
+    def filter_sort(self,val):
+        self.items=[item for item in self.items if item.accuracy>=val]
+        self.items.sort(key=lambda item: item.accuracy,reverse=True)       
+ 
     def clear(self):
-        self.image_paths.clear()
-        self.accuracies.clear()
-        
+        self.items.clear()
+
+    def average(self):
+        suma = 0
+        if len(self.items) == 0:
+            return 0
+        maxel = max(self.items, key=lambda a: a.accuracy)
+        for i in self.items:
+            suma += i.accuracy
+        suma -= maxel.accuracy
+        return suma / max(1, len(self.items))
+
 class MyThread(QRunnable):
     
     def __init__(self,function,args):
@@ -97,10 +96,12 @@ class GUI(QMainWindow):
         self.selected_folder_path=None
         self.img_db=img_db
         self.img_process=img_proc
-        self.img_list=DisplayList()
+        self.image_list=DisplayList()
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.thread_manager=MyThreadManager()
-        
+        self.num_of_processes=mp.cpu_count()
+        self.pool=mp.Pool(self.num_of_processes) 
+        self.video_player = None      
     def initUI(self):
         self.setWindowTitle("GLUEE")
         self.setGeometry(100,100,1000,600)
@@ -125,37 +126,42 @@ class GUI(QMainWindow):
     
 
     def index_folder(self,path,img_db):
-        # mp.set_start_method('spawn', force=True)
         xD=time.time()
         img_db.open_connection()
-        num_of_processes=mp.cpu_count()*2
-        pool=mp.Pool(num_of_processes)
+        
         with mp.Manager() as manager:
             for batch in search2(path):
                 for img_path in batch:
-                    if not img_path.endswith('.mp4'):
+                    queue=manager.Queue() 
+                    if '.mp4' not in img_path:
+                        print(f"File path IMAGE:{img_path}")
                         image=cv2.imread(img_path)
-                        image_data = self.img_process.getImageData(image, imageFeatures=True, objectsFeatures=True)
+                        image_data = self.img_process.getImageData(image, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
                         image_data.orgImage = img_path
-                        img_db.addImage(image_data)
+                        img_db.addImage(image_data,commit_flag=False)
                     else :
+                        print(f"File path VIDEO:{img_path}")
                         modelsum=0
-                        queue=manager.Queue() 
-                        processes=[]
-                        summ_video_parallel(img_path,queue,num_of_processes,pool)
+                        summ_video_parallel(img_path,queue,self.num_of_processes,self.pool)
                         i=0
-                        while i!= num_of_processes:
+                        os.makedirs("C:\\kf3", exist_ok=True) ##x
+                        while i != self.num_of_processes:
                             frame_data=queue.get()
                             if frame_data is None:
                                 i+=1
                             else:
-                                model=time.time()
-                                image_data = self.img_process.getImageData(frame_data.frame, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.25)
-                                image_data.orgImage=img_path+"\\"+str(frame_data.frame_number)
-                                modelsum+=time.time()-model
+                                video_name = os.path.basename(img_path)##x
+                                image_data = self.img_process.getImageData(frame_data.frame, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
+                                fake_image_path = f"C:\\kf3\\{video_name}\\{str(frame_data.frame_number)}.png"##x
+                                real_video_path_plus_image = img_path + f"\\{str(frame_data.frame_number)}.png"
+                                os.makedirs(f"C:\\kf3\\{video_name}", exist_ok=True)##x
+                                cv2.imwrite(fake_image_path, frame_data.frame)##x
+                                
+                                image_data.orgImage=real_video_path_plus_image##x
+                                
                                 img_db.addImage(image_data,commit_flag=False)
-        pool.close()
-        pool.join()
+        # self.pool.close()
+        # self.pool.join()
         img_db.commit_changes()
         img_db.close_connection()
         # print(f"Model:{modelsum}") 
@@ -213,11 +219,10 @@ class GUI(QMainWindow):
     
     def display_results(self,photo_path,img_db):
         xD=time.time()
-        self.img_list.clear()
+        self.image_list.clear()
         self.search_results_list.clear()
-        
         img = cv2.imread(photo_path)
-        image_data = self.img_process.getImageData(img ,classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.55)
+        image_data = self.img_process.getImageData(img ,classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
         print(list(map(lambda x: x.className, image_data.classes)))
         img_db.open_connection()
         imgs = img_db.search_by_image([ x.className for x in image_data.classes])#sve slike sa tom odrednjemo klasom
@@ -225,80 +230,84 @@ class GUI(QMainWindow):
 
         length=len(imgs)
         sum=0
-        imageList = []
         for img in imgs:
-            start=time.time()
-            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True, minObjWeight=0.0)
-            sum+=time.time()-start
-            if confidence > 0.0001:
-                # self.img_list.append(img.orgImage, confidence)
-                imageList.append((img, confidence))
+            start=time.perf_counter()
+            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
+            sum+=time.perf_counter()-start
+            self.image_list.append(DisplayItem(img.orgImage, confidence))
         
-        # print(f"Compare time:{sum}")
-        # print(f"Average time per image:{sum/length}")
-        # print(f"Number of images:{length}")
         
-        # self.img_list.sort()
-        # for index,(image_path,accuracy) in enumerate(self.img_list):
-        #     self.add_image_to_grid(image_path,accuracy)
-        #     self.update()
+        average = self.image_list.average()
+        self.image_list.filter_sort(average)
         
-        #TODO OVO DODATI U DISPLAY A NE OVAKO...
-        suma = 0
-        m = 0
-        for i in imageList:
-            m = max(m, i[1])
-            suma += i[1]
-        suma -= m
-        el = suma / max(1, len(imageList)-1)
-        print(f"EL {el}")
-        imageList = list(filter(lambda x: x[1] > (el), imageList))
-        imageList.sort(key=lambda x: x[1], reverse=True)
-
         print(f"Compare time:{sum}")
         print(f"Average time per image:{sum/max(1, length)}")
         print(f"Number of images:{length}")
-        
-        self.img_list.sort()
-
-        for (image_path,accuracy) in imageList:
-            self.add_image_to_grid(image_path,accuracy)
-            self.update()
-        
+            
+        for item in self.image_list:
+            
+            self.add_image_to_grid(item.image_path)
+            # self.update()
 
         self.setCursor(Qt.ArrowCursor)
         self.btn_photo.setEnabled(True)
         
         print(f"Total:{time.time()-xD}")
         
-    def add_image_to_grid(self, image,accuracy):
-        pixmap = QPixmap(image.orgImage)
+    def add_image_to_grid(self, image_path:str):
+        
+        paths = image_path.split('\\')
+        
+        if paths[-2].lower().endswith(('.mp4',)):
+            not_video_path =  f"C:\\kf3\\{paths[-2]}\\{paths[-1]}"
+        
+        pixmap = QPixmap(not_video_path)
+        
         icon = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        item = QListWidgetItem(QIcon(icon), f"{accuracy} : " + str(reduce(lambda a,b: a +", "+ b.className, image.classes, "")))
-        item.setData(Qt.UserRole, image.orgImage)
+        item = QListWidgetItem(QIcon(icon), "")
+        item.setData(Qt.UserRole, image_path)
         self.search_results_list.addItem(item)
 
     def open_selected_image(self, item):
         image_path = item.data(Qt.UserRole)
-        if image_path:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(image_path))
+        print(image_path)
+        paths = image_path.rsplit("\\", 1)
+        if paths[0].lower().endswith(('.mp4',)):              
+            print(paths)
+            frame_num = paths[1].split('.')[0]
+            print(frame_num)
+            self.start_player(paths[0], (int(frame_num) // 30) * 1000)
+            # self.thread_manager.start_thread(function=self.start_player ,args=(paths[0],))
+        else:
+            if image_path:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(image_path))    
             
+    def start_player(self, video_path, position):
+        self.video_player = VideoPlayer(fileName=video_path)
+        self.video_player.setWindowTitle("Player")
+        self.video_player.resize(600, 400)
+        self.video_player.mediaPlayer.setPosition(position)
+        self.video_player.show() 
+        # time.sleep(100)     
 def search2(startDirectory):
     file_list = os.listdir(startDirectory)
     yield_this=[]
     counter=0
     for file_name in file_list:
         if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.mp4')):
-            
             startDirectory = os.path.normpath(startDirectory)
             image_path = os.path.join(startDirectory , file_name)
             
-            yield_this.append(image_path)
-            counter+=1
+            if image_path.endswith('.mp4'):
+                yield [image_path]
+            else:
+                yield_this.append(image_path)
+                counter+=1
+                    
+                if counter==128:
+                    counter=0
+                    yield yield_this
+                    yield_this.clear()
             
-            if counter==32:
-                counter=0
+            if yield_this:
                 yield yield_this
-                yield_this.clear()
-    
-    yield yield_this

@@ -7,7 +7,7 @@ class FrameData:
         self.frame_number = frame_number
 
 def summ_video(video_path, start_frame, end_frame,output_queue):
-
+    print("Radim!:{start_frame}")
     cap = cv2.VideoCapture(video_path,cv2.CAP_FFMPEG)
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     

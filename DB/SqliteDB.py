@@ -132,3 +132,4 @@ class ImageDB:
     def close_connection(self):
         self.cursor.close()
         self.con.close()
+        print("Closed connection!")
