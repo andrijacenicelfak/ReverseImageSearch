@@ -1,4 +1,5 @@
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\1.jpg
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\2.jpg
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\3.jpg
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\93.jpg
+C:\Users\best_intern\Desktop\New folder (2)\230605144352-01-cat-contraceptives-scn.jpg
+C:\Users\best_intern\Desktop\New folder (2)\ee5845ba456261df37ac48d1542a59b6.jpg
+C:\Users\best_intern\Desktop\New folder (2)\gray+stripe+domestic+shortahair+tabby+cat+resting+in+a+maroon+cat+tree+bed-min.jpg
+C:\Users\best_intern\Desktop\New folder (2)\Screenshot 2023-08-21 110333.png
+C:\Users\best_intern\Desktop\New folder (2)\Screenshot 2023-08-21 110429.png

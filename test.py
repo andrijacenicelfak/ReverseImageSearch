@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 def objectComparisonTest():
-    fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Documents\\dev\\ImageClassification\\YOLOv8\\imgs")
+    fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Desktop\\New folder (2)")
     paths = fe.search()
 
     ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
@@ -19,8 +19,8 @@ def objectComparisonTest():
             for md in data:
                 for mcdata in md.classes:
                     img2 = md.orgImage[mcdata.boundingBox.y1 : mcdata.boundingBox.y2, mcdata.boundingBox.x1 : mcdata.boundingBox.x2]
-                    dist = ai.compareImageClassificationData(icd1=cdata, icd2=mcdata)
-                    print(dist)
+                    dist = ai.compareImageClassificationData(icd1=cdata, icd2=mcdata, treshhold=0)
+                    print(f"{dist} : {cdata.className} : {mcdata.className}")
                     imgs = np.concatenate([cv2.resize(img, (512, 512)), cv2.resize(img2, (512, 512))], axis=1)
                     cv2.rectangle(imgs, (512, 512), (715, 490), (0,0,0), -1)
                     cv2.putText(imgs, "sim  : %1.3f" % (dist,), (512, 512), 1, 2, (255,255,255), 1, cv2.LINE_AA)
@@ -44,7 +44,7 @@ def imageComparisonTest():
     ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
     data: list[ImageData] = []
     for p in paths:
-        data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True, classesConfidence=0.25))
+        data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True, classesConfidence=0.65))
 
     for d1 in data:
         paths = []

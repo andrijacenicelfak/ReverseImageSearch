@@ -10,6 +10,7 @@ import json
 from scipy.spatial.distance import cosine
 import os
 import torchvision
+from DB.Functions import get_image_flag
 from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoder
 
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
@@ -64,11 +65,12 @@ class BoundingBox:
 
 
 class ImageClassificationData:
-    def __init__(self, className : str, boundingBox : BoundingBox, features : list = None, weight : float = 0):
+    def __init__(self, className : str, boundingBox : BoundingBox, features : list = None, weight : float = 0, conf : float = 0):
         self.className : str =className
         self.boundingBox : BoundingBox = boundingBox
         self.features = features
         self.weight : float = weight
+        self.conf = conf
         self.id = None
     def __eq__(self, other) -> bool:
         return self.className == other.className and self.boundingBox == other.boundingBox and self.features == other.features and self.weight == other.weight
@@ -135,12 +137,18 @@ class ImageAnalyzation:
     # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.55) -> list[ImageClassificationData]:
         res = self.model.predict(image, verbose=False, conf=conf)
-        data = [(self.modelNames[int(c.cls)], np.array(c.xyxy.cpu(), dtype="int").flatten()) for r in res for c in r.boxes]
+        data = [
+                    (
+                        self.modelNames[int(c.cls)],
+                        np.array(c.xyxy.cpu(),dtype="int").flatten(),
+                        c.conf.cpu().detach().item()
+                    )
+                for r in res for c in r.boxes]
         imcdata = []
         for d in data:
             bbox = BoundingBox(d[1][0], d[1][1], d[1][2], d[1][3])
             weight = ((bbox.x2 - bbox.x1) * (bbox.y2 - bbox.y1)) / (image.shape[0] * image.shape[1])
-            imcdata.append(ImageClassificationData(className=d[0], boundingBox=bbox, features=None, weight = weight))
+            imcdata.append(ImageClassificationData(className=d[0], boundingBox=bbox, features=None, weight = weight, conf = d[2]))
 
         if objectFeatures:
             for d in range(len(imcdata)):
@@ -265,6 +273,72 @@ class ImageAnalyzation:
 
         return (wholeImageFactor * imageObjectsFactor)
 
+    def compareImagesNew(self, *, 
+                         imgData1 : ImageData, 
+                         imgData2: ImageData, 
+                         compareObjects = True, 
+                         compareWholeImages = False, 
+                         containSameObjects = False,
+                         maxWeightReduction = True,
+                         minObjConf = 0.5,
+                         minObjWeight = 0.05,
+                         selectedIndex = None
+                         ):
+        
+        if len(imgData1.classes) == 0 and len(imgData2.classes) == 0:
+            compareObjects = False
+        elif selectedIndex is not None:
+            selectedClassdata = imgData1.classes[selectedIndex]
+            imgData1.classes = [selectedClassdata,]
+        else:
+            imgData1.classes = list(filter(lambda x: x.weight >= minObjWeight and x.conf >= minObjConf, imgData1.classes))
+            imgData2.classes = list(filter(lambda x: x.weight >= minObjWeight and x.conf >= minObjConf, imgData2.classes))
+        
+        #comparing whole images, if match return
+        imageComparison = 1
+        if compareWholeImages:
+            imageComparison = 1 - cosine(imgData1.features, imgData2.features)
+            if imageComparison == 1:
+                return 100
+        
+        flag1 = get_image_flag(list(map(lambda x : x.className, imgData1.classes)))
+        flag1 = (flag1[0], flag1[1], flag1[0].bit_count() + flag1[1].bit_count())
+        flag2 = get_image_flag(list(map(lambda x : x.className, imgData2.classes)))
+        flag2 = (flag2[0], flag2[1], flag2[0].bit_count() + flag2[1].bit_count())
+
+        flag = (flag1[0] & flag2[0], flag1[1] & flag2[1])
+        flag = (flag[0], flag[1], flag[0].bit_count() + flag[1].bit_count())
+        
+        #if the objects from the first image are not matched then image is not a match
+        if containSameObjects and flag[2] != flag1[2]:
+            return 0
+
+        objectComparison = 1
+        if compareObjects:
+            fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
+            if selectedIndex is not None:
+                objectComparison = fts[0][1]
+            else:
+                sumAll = 0
+                numOfMatches = 0
+                for i in range(len(imgData1.classes)):
+                    j = fts[i][0]
+                    if j == -1:
+                        continue
+                    if stf[j][0] == i:
+                        sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
+                        numOfMatches+=1
+                        
+                objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
+                if maxWeightReduction:
+                    # if the object with max weight does not appear in the seccond image the match is reduced
+                    maxWeightObj = max(imgData1.classes, key=lambda x : x.weight)
+                    mwbFlag = get_image_flag([maxWeightObj.className,]) 
+                    if (mwbFlag[0] & flag2[0] + mwbFlag[1] & flag2[1]) == 0:
+                        objectComparison /= 8
+
+        return objectComparison * imageComparison
+    
     # compares the images by calculating the max object matching and similarity between images
     # objectComparison = the sum of all the max matches between objects, if two objects are most simmilar 
     # with each other their simmilarity goes in the sum, the objects that don't match don't
@@ -293,7 +367,7 @@ class ImageAnalyzation:
         
         #If the class with the most weight does not exist in the second image lower the simmilarity
         maxWeightComponent = 1
-        maxWeightClass = max(imgData1.classes, key=lambda x: x.weight if x.className != 'person' else 0)
+        maxWeightClass = max(imgData1.classes, key=lambda x: x.weight)
         if maxWeightClass.className not in objects2:
             maxWeightComponent = 1e-2
         
@@ -348,7 +422,7 @@ class ImageAnalyzation:
             return 0
         dist = (1 - cosine(icd1.features, icd2.features))
         #The values seem to be between 0.8 - 1.0
-        dist = (dist - 0.8) * 5
+        dist = (dist - 0.6) * 2.5
         #Values 0.0 - 1.0
         return (dist if dist >= treshhold else 0)
 
