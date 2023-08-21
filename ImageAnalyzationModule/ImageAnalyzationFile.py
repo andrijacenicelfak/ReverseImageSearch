@@ -13,6 +13,25 @@ import torchvision
 from DB.Functions import get_image_flag
 from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoder
 
+MAX_SIMMILARITY = 100
+IMAGE_SIZE_AUTOENCODER = (128, 128)
+IMAGE_SIZE_YOLO = (224, 224)
+RUN_THOUGH_SIZE = (64, 64, 3)
+
+class AnalyzationType(Enum):
+    FullVector = 0
+    BMM = 1
+    Avg = 2
+    Cut = 3
+    CoderDecoder = 4
+
+typeDict = {
+        AnalyzationType.FullVector : None,
+        AnalyzationType.BMM : "bmm",
+        AnalyzationType.Avg : "avg", 
+        AnalyzationType.Cut : "2048", 
+        AnalyzationType.CoderDecoder : None
+        }
 # Modify the functionality of the Detect class for intermediate layer extraction of features.
 # The functionality remains the same; it just adds the final part.
 def modifyDetectClass(): 
@@ -83,21 +102,8 @@ class ImageData:
         self.histogram = histogram
     # def __eq__(self, other) -> bool:
     #     return self.classes == other.classes and self.features == other.features and self.orgImage == other.orgImage
-class AnalyzationType(Enum):
-    FullVector = 0
-    BMM = 1
-    Avg = 2
-    Cut = 3
-    CoderDecoder = 4
+
 class ImageAnalyzation:
-    typeDict = {
-        AnalyzationType.FullVector : None,
-        AnalyzationType.BMM : "bmm",
-        AnalyzationType.Avg : "avg", 
-        AnalyzationType.Cut : "2048", 
-        AnalyzationType.CoderDecoder : None
-        }
-    
     def __init__(self, model : str, *, device : str = "cuda", analyzationType : AnalyzationType = AnalyzationType.CoderDecoder, aedType : type = AutoEncoderDecoder, coderDecoderModel : str = None):
         model = model.split(".")[0]
         self.model = YOLO(model)
@@ -109,8 +115,18 @@ class ImageAnalyzation:
         self.wholeVector = True
         self.coderDecoder = False
 
-        if analyzationType != AnalyzationType.FullVector and analyzationType != AnalyzationType.CoderDecoder:
-            vectorPath = f'.\\models\\{model}-{self.typeDict[analyzationType]}.json'
+        if analyzationType == AnalyzationType.CoderDecoder:
+            self.t = torchvision.transforms.Compose([
+                    torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize((0.5),(0.5))
+                ])
+            self.coderDecoderModel = aedType()
+            self.coderDecoderModel.eval()
+            self.coderDecoderModel.load_state_dict(torch.load(f".\\models\\{coderDecoderModel}.model"))
+            self.coderDecoderModel.to(device, non_blocking = True)
+            self.coderDecoder = True
+        elif analyzationType != AnalyzationType.FullVector:
+            vectorPath = f'.\\models\\{model}-{typeDict[analyzationType]}.json'
             if os.path.exists(vectorPath):
                 with open(vectorPath, "r") as   f:
                     self.vlist = json.load(fp=f)
@@ -118,21 +134,11 @@ class ImageAnalyzation:
                 modifyDetectClass()
             else:
                 print("There is no vector for that model. You should first generate the model vector. Returninig the whole vector!")
-        elif analyzationType == AnalyzationType.CoderDecoder:
-            self.t = torchvision.transforms.Compose([
-                    torchvision.transforms.ToTensor(),
-                    torchvision.transforms.Normalize((0.5),(0.5))
-                ])
-            self.coderDecoderModel = aedType()
-            self.coderDecoderModel.eval()
-            self.coderDecoderModel.load_state_dict(torch.load(".\\models\\"+coderDecoderModel + ".model"))
-            self.coderDecoderModel.to(device, non_blocking = True)
-            self.coderDecoder = True
         self.runThrough()
 
     # To load the model on GPU run a small image through
     def runThrough(self):
-        self.model.predict(np.zeros((64,64,3)), verbose=False)
+        self.model.predict(np.zeros(RUN_THOUGH_SIZE), verbose=False)
 
     # Calls the yolo model to get the bounding boxes and classes on the image
     def getObjectClasses(self, image, *, objectFeatures = False, conf = 0.55) -> list[ImageClassificationData]:
@@ -171,7 +177,7 @@ class ImageAnalyzation:
         if not self.coderDecoder:
             return self.getFeatureVector(image, wholeVector=wholeVector)
         else:
-            img = cv2.resize(image, (128, 128))#.transpose(2, 1, 0)
+            img = cv2.resize(image, IMAGE_SIZE_AUTOENCODER)#.transpose(2, 1, 0)
             img = self.t(img)
             return self.getCodedFeatureVector(images=torch.stack([img,])).flatten()
 
@@ -224,7 +230,7 @@ class ImageAnalyzation:
     # combinedNumObj is the combined numb of objects in two images
     # numOfDiffObj is number of classes that appear in on image and not the other and is they do appear number of different number of apperances
     # wholeImageSimilarity histogram comparison and descriptor comaparison
-    def compareImagesOld(self, imgData1 : ImageData, imgData2: ImageData, *, compareWholeImages = False, compareImageObjects = False, compareHistograms = True, containAllObjects = False):
+    def compareImagesV1(self, imgData1 : ImageData, imgData2: ImageData, *, compareWholeImages = False, compareImageObjects = False, compareHistograms = True, containAllObjects = False):
         print("[DEPRICATED] Using depricated code : comapareImagesOld")
         if imgData1.orgImage is None or imgData2.orgImage is None:
             raise Exception("Image data should contain the original image for comparesons")
@@ -273,7 +279,7 @@ class ImageAnalyzation:
 
         return (wholeImageFactor * imageObjectsFactor)
 
-    def compareImagesNew(self, *, 
+    def compareImages(self, *, 
                          imgData1 : ImageData, 
                          imgData2: ImageData, 
                          compareObjects = True, 
@@ -299,7 +305,7 @@ class ImageAnalyzation:
         if compareWholeImages:
             imageComparison = 1 - cosine(imgData1.features, imgData2.features)
             if imageComparison == 1:
-                return 100
+                return MAX_SIMMILARITY
         
         flag1 = get_image_flag(list(map(lambda x : x.className, imgData1.classes)))
         flag1 = (flag1[0], flag1[1], flag1[0].bit_count() + flag1[1].bit_count())
@@ -315,35 +321,45 @@ class ImageAnalyzation:
 
         objectComparison = 1
         if compareObjects:
-            fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
-            if selectedIndex is not None:
-                objectComparison = fts[0][1]
-            else:
-                sumAll = 0
-                numOfMatches = 0
-                for i in range(len(imgData1.classes)):
-                    j = fts[i][0]
-                    if j == -1:
-                        continue
-                    if stf[j][0] == i:
-                        sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
-                        numOfMatches+=1
-                        
-                objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
-                if maxWeightReduction:
-                    # if the object with max weight does not appear in the seccond image the match is reduced
-                    maxWeightObj = max(imgData1.classes, key=lambda x : x.weight)
-                    mwbFlag = get_image_flag([maxWeightObj.className,]) 
-                    if (mwbFlag[0] & flag2[0] + mwbFlag[1] & flag2[1]) == 0:
-                        objectComparison /= 8
+            objectComparison = self.objectComparison(imgData1=imgData1, imgData2=imgData2, selectedIndex=selectedIndex, maxWeightReduction=maxWeightReduction)
 
         return objectComparison * imageComparison
     
+    #function for object comparison
+    def objectComparison(self, *, imgData1 : ImageData, imgData2: ImageData, selectedIndex = None, maxWeightReduction = False):
+        objectComparison = 1
+        if len(imgData1.classes) == 0:
+            return 1
+        fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
+        if selectedIndex is not None:
+            return fts[0][1]
+        sumAll = 0
+        numOfMatches = 0
+        for i in range(len(imgData1.classes)):
+            j = fts[i][0]
+            if j != -1 and stf[j][0] == i:
+                sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
+                numOfMatches+=1
+                
+        objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
+        # if the object with max weight does not appear in the seccond image the match is reduced
+        if maxWeightReduction:
+            weights = dict()
+            for obj in imgData1.classes:
+                if obj.className in weights:
+                    weights[obj.className] += obj.weight * obj.conf
+                else:
+                    weights[obj.className] = obj.weight * obj.conf
+            maxWeightObj = max([key for key in weights.keys()], key=lambda a: weights[a])
+            if maxWeightObj not in map(lambda a: a.className, imgData2.classes):
+                objectComparison *= 1e-6
+        return objectComparison
+
     # compares the images by calculating the max object matching and similarity between images
     # objectComparison = the sum of all the max matches between objects, if two objects are most simmilar 
     # with each other their simmilarity goes in the sum, the objects that don't match don't
     # if there is a match in comparing whole images the func returns 100
-    def compareImages(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, minObjWeight = 0.05):
+    def compareImagesV2(self, *, imgData1 : ImageData, imgData2: ImageData, compareObjects = True, compareWholeImages = False, minObjWeight = 0.05):
 
         #comparing whole images, if match return
         imageComparison = 1
@@ -421,9 +437,10 @@ class ImageAnalyzation:
         if icd1.className != icd2.className:
             return 0
         dist = (1 - cosine(icd1.features, icd2.features))
-        #The values seem to be between 0.8 - 1.0
+        #The values seem to be between 0.6 - 1.0
         dist = (dist - 0.6) * 2.5
         #Values 0.0 - 1.0
+        dist = dist * icd1.conf * icd2.conf
         return (dist if dist >= treshhold else 0)
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
@@ -468,7 +485,9 @@ class ImageAnalyzation:
         diff = None
         diffNormalizedLast = None
         lastData = None
-        for i in range(len(imgPaths)):
+        i = 0
+        dist = 100
+        while i < len(imgPaths) and minDist <= dist:
             data = self.getFeatureVector(cv2.imread(imgPaths[i]), wholeVector=True)
             if diff is None:
                 print("data lenght : " , len(data))
@@ -479,9 +498,8 @@ class ImageAnalyzation:
                 if diffNormalizedLast is not None:
                     dist = cosine(diffNormalizedLast, diffNormalized)
                     print(dist - minDist)
-                    if minDist > dist:
-                        break
                 diffNormalizedLast = diffNormalized
+            i += 1
             lastData = data
         #vector of 2048
         diffIndex = list(zip(diffNormalizedLast, range(len(diffNormalizedLast))))
@@ -519,7 +537,7 @@ class ImageAnalyzation:
             print("Extracting image features with autoencoder NOT with YOLO, yolo's features for whole image comaprison is better than autoencoder")
             # Not the same as getImageData, can't extract multiple image vectors from yolo only 1 at a time, this uses autoencoder.
             # Better results with yolo features
-            imgFeatures = self.getFeatureVectorList(torch.stack([self.t(cv2.resize(img, (128,128))) for img in images], dim=0), wholeVector=wholeVector)
+            imgFeatures = self.getFeatureVectorList(torch.stack([self.t(cv2.resize(img, IMAGE_SIZE_AUTOENCODER)) for img in images], dim=0), wholeVector=wholeVector)
         return [
                 ImageData(
                     orgImage=(images[i] if returnOriginalImage else None),
@@ -545,9 +563,9 @@ class ImageAnalyzation:
                 bbox = BoundingBox(d[1][0], d[1][1], d[1][2], d[1][3])
                 img = images[i][bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
                 if self.coderDecoder:
-                    img = self.t(cv2.resize(img, (128,  128)))
+                    img = self.t(cv2.resize(img, IMAGE_SIZE_AUTOENCODER))
                 else:
-                    img = cv2.resize(img, (224,224))
+                    img = cv2.resize(img, IMAGE_SIZE_YOLO)
                 imagescut.append(img)
                 weight = ((bbox.x2 - bbox.x1) * (bbox.y2 - bbox.y1)) / (images[i].shape[0] * images[i].shape[1])
                 classData = ImageClassificationData(className=d[0], boundingBox=bbox, features=None, weight = weight)
