@@ -283,9 +283,11 @@ class ImageAnalyzation:
                          imgData1 : ImageData, 
                          imgData2: ImageData, 
                          compareObjects = True, 
-                         compareWholeImages = False, 
-                         containSameObjects = False,
+                         compareWholeImages = True, 
                          maxWeightReduction = True,
+                         containSameObjects = False,
+                         confidenceCalculation = False,
+                         magnitudeCalculation = False,
                          minObjConf = 0.5,
                          minObjWeight = 0.05,
                          selectedIndex = None
@@ -321,16 +323,16 @@ class ImageAnalyzation:
 
         objectComparison = 1
         if compareObjects:
-            objectComparison = self.objectComparison(imgData1=imgData1, imgData2=imgData2, selectedIndex=selectedIndex, maxWeightReduction=maxWeightReduction)
+            objectComparison = self.objectComparison(imgData1=imgData1, imgData2=imgData2, selectedIndex=selectedIndex, maxWeightReduction=maxWeightReduction, confidenceCalculation=confidenceCalculation, magnitudeCalculation=magnitudeCalculation)
 
         return objectComparison * imageComparison
     
     #function for object comparison
-    def objectComparison(self, *, imgData1 : ImageData, imgData2: ImageData, selectedIndex = None, maxWeightReduction = False):
+    def objectComparison(self, *, imgData1 : ImageData, imgData2: ImageData, selectedIndex = None, maxWeightReduction = False,  confidenceCalculation = False, magnitudeCalculation = False):
         objectComparison = 1
         if len(imgData1.classes) == 0:
             return 1
-        fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2)
+        fts, stf = self.generateDicts(imgData1=imgData1, imgData2=imgData2, confidenceCalculation=confidenceCalculation, magnitudeCalculation=magnitudeCalculation)
         if selectedIndex is not None:
             return fts[0][1]
         sumAll = 0
@@ -342,17 +344,25 @@ class ImageAnalyzation:
                 numOfMatches+=1
                 
         objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
-        # if the object with max weight does not appear in the seccond image the match is reduced
+        # if the object type with max weight (sum of weights of the same type) does not appear in the seccond image the match is reduced
         if maxWeightReduction:
-            weights = dict()
+            weights1 = dict()
             for obj in imgData1.classes:
-                if obj.className in weights:
-                    weights[obj.className] += obj.weight * obj.conf
+                if obj.className in weights1:
+                    weights1[obj.className] += obj.weight * obj.conf
                 else:
-                    weights[obj.className] = obj.weight * obj.conf
-            maxWeightObj = max([key for key in weights.keys()], key=lambda a: weights[a])
+                    weights1[obj.className] = obj.weight * obj.conf
+            weights2 = dict()
+            for obj in imgData2.classes:
+                if obj.className in weights2:
+                    weights2[obj.className] += obj.weight * obj.conf
+                else:
+                    weights2[obj.className] = obj.weight * obj.conf
+            maxWeightObj = max([key for key in weights1.keys()], key=lambda a: weights1[a])
             if maxWeightObj not in map(lambda a: a.className, imgData2.classes):
                 objectComparison *= 1e-6
+            else:
+                objectComparison *= weights2[maxWeightObj]
         return objectComparison
 
     # compares the images by calculating the max object matching and similarity between images
@@ -410,7 +420,7 @@ class ImageAnalyzation:
     # Generates the dictionaries for comparing classification data
     # fts (first to second) generates the indexes of most simmilar objects for the list of objects from the first imgData
     # stf (second to first) generates the indexes of most simmilar object for the list of objects from the seconda imgData
-    def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData) -> (dict, dict):
+    def generateDicts(self, *, imgData1 : ImageData, imgData2 : ImageData,  confidenceCalculation = False, magnitudeCalculation = False) -> (dict, dict):
         fts = dict()
         stf = dict()
         for i in range(len(imgData1.classes)):
@@ -429,19 +439,30 @@ class ImageAnalyzation:
         return (fts, stf)
 
     #Calculates the similarity of objects on image
-    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.1):
+    def compareImageClassificationData(self, *, icd1 : ImageClassificationData, icd2 : ImageClassificationData, treshhold = 0.1, confidenceCalculation = False, magnitudeCalculation = False):
         if icd1.features is None or icd2.features is None:
             raise Exception("Feature vector is None!")
         if icd1.weight is None or icd2.weight is None:
             raise Exception("No weights for calculating similarity!")
         if icd1.className != icd2.className:
             return 0
-        dist = (1 - cosine(icd1.features, icd2.features))
+        # dist = (1 - cosine(icd1.features, icd2.features))
+        dist = self.vectorDistance(icd1.features, icd2.features, magnitudeCalculation=magnitudeCalculation)
         #The values seem to be between 0.6 - 1.0
         dist = (dist - 0.6) * 2.5
         #Values 0.0 - 1.0
-        dist = dist * icd1.conf * icd2.conf
+        if confidenceCalculation: #Worse results
+            dist = dist * icd1.conf * icd2.conf
         return (dist if dist >= treshhold else 0)
+
+    def vectorDistance(self, vec1, vec2, magnitudeCalculation = False):
+        res = (1 - cosine(vec1, vec2))
+        if magnitudeCalculation:
+            l1 = np.linalg.norm(vec1)
+            l2 = np.linalg.norm(vec2)
+            res *= min(l1, l2) / max(l1, l2)
+        return res
+
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(self, icd1 : ImageClassificationData, icd2 : ImageClassificationData, *, img1 = None, img2 = None, cutImage  = False, compareHistograms = True):

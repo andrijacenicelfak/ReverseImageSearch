@@ -5,7 +5,8 @@ import numpy as np
 from GUI.GUIFunctions import drawClasses, resizeImage
 
 def objectComparisonTest():
-    fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Desktop\\New folder (2)")
+    fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
+    # fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Desktop\\New folder (2)")
     paths = fe.search()
 
     ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
@@ -41,7 +42,7 @@ def objectComparisonTest():
 def imageComparisonTest():
     fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
     paths = fe.search()
-
+ 
     ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
     data: list[ImageData] = []
     for p in paths:
@@ -80,6 +81,6 @@ def rectDrawTest():
 
     return
 if __name__ == "__main__":
-    imageComparisonTest()
+    objectComparisonTest()
     cv2.destroyAllWindows()
     print("Done")
