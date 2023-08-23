@@ -134,13 +134,13 @@ class GUI(QMainWindow):
                 for img_path in batch:
                     queue=manager.Queue() 
                     if '.mp4' not in img_path:
-                        print(f"File path IMAGE:{img_path}")
+                        # print(f"File path IMAGE:{img_path}")
                         image=cv2.imread(img_path)
                         image_data = self.img_process.getImageData(image, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
                         image_data.orgImage = img_path
                         img_db.addImage(image_data,commit_flag=False)
                     else :
-                        print(f"File path VIDEO:{img_path}")
+                        # print(f"File path VIDEO:{img_path}")
                         modelsum=0
                         summ_video_parallel(img_path,queue,self.num_of_processes,self.pool)
                         i=0
@@ -232,7 +232,7 @@ class GUI(QMainWindow):
         sum=0
         for img in imgs:
             start=time.perf_counter()
-            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img,compareObjects=True,compareWholeImages = True)
+            confidence=self.img_process.compareImages(imgData1=image_data,imgData2=img)
             sum+=time.perf_counter()-start
             self.image_list.append(DisplayItem(img.orgImage, confidence))
         

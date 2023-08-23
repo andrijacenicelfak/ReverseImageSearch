@@ -12,7 +12,6 @@ import os
 import torchvision
 from DB.Functions import get_image_flag
 from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoder
-
 MAX_SIMMILARITY = 100
 IMAGE_SIZE_AUTOENCODER = (128, 128)
 IMAGE_SIZE_YOLO = (224, 224)

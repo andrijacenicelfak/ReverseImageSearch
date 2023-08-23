@@ -55,7 +55,7 @@ class ImageDB:
             self.cursor.execute('INSERT INTO images (path, flag0, flag1, desc) VALUES (?, ?, ?, ?)', (dbstruct.orgImage, flag0, flag1, pickle.dumps(dbstruct.features)))
             img_id = self.cursor.lastrowid  
             for obj in dbstruct.classes:
-                self.cursor.execute('INSERT INTO objects (image_id, class_name, desc,weight, conf) VALUES (?, ?, ?,?)', (img_id, obj.className, pickle.dumps(obj.features),obj.weight, obj.conf))
+                self.cursor.execute('INSERT INTO objects (image_id, class_name, desc,weight, conf) VALUES (?, ?, ?,?, ?)', (img_id, obj.className, pickle.dumps(obj.features),obj.weight, obj.conf))
             if commit_flag:
                 self.con.commit()                
         except sqlite3.Error as e:
