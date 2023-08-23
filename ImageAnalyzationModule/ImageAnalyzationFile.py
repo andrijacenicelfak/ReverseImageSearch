@@ -407,9 +407,7 @@ class ImageAnalyzation:
             numOfMatches = 0
             for i in range(len(imgData1.classes)):
                 j = fts[i][0]
-                if j == -1:
-                    continue
-                if stf[j][0] == i:
+                if j != -1 and stf[j][0] == i:
                     sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
                     numOfMatches+=1
             objectComparison = sumAll * 2 / (max(1, len(imgData1.classes) + len(imgData2.classes))) * (numOfMatches / max(len(imgData1.classes),1))
@@ -429,7 +427,7 @@ class ImageAnalyzation:
         
         for i, classData1 in enumerate(imgData1.classes):
             for j, classData2 in enumerate(imgData2.classes):
-                sim = self.compareImageClassificationData(icd1=classData1, icd2=classData2)
+                sim = self.compareImageClassificationData(icd1=classData1, icd2=classData2, confidenceCalculation=confidenceCalculation, magnitudeCalculation=magnitudeCalculation)
                 if fts[i][1] <= sim:
                     fts[i] = (j, sim)
                 if stf[j][1] <= sim:
@@ -621,7 +619,7 @@ class ImageAnalyzation:
         images = []
         for i in range(0,2):
             size = (128 *(i+1), 128 *(i+1))
-            img = cv2.resize(image, size)
+            img = np.resize(image, size)
             for x in range(int(size[0]/128)):
                 for y in range(int(size[1]/128)):
                     images.append(img[y*128 : (y+1)*128, x*128 : (x+1)*128])
