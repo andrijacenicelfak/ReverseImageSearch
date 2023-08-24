@@ -21,3 +21,19 @@ class SearchParams:
         self.selectedIndex = selectedIndex
         self.imagePath = imagePath
         self.data = None
+    
+    def from_dict(self, dictionary):
+        for key in dictionary:
+            setattr(self, key, dictionary[key])
+    
+    def get_dict(self):
+        d = dict()
+        d["compareObjects"] = self.compareObjects
+        d["compareWholeImages"] = self.compareWholeImages
+        d["maxWeightReduction"] = self.maxWeightReduction
+        d["containSameObjects"] = self.containSameObjects
+        d["magnitudeCalculation"] = self.magnitudeCalculation
+        d["magnitudeCalculation"] = self.magnitudeCalculation
+        d["minObjConf"] = self.minObjConf
+        d["minObjWeight"] = self.minObjWeight
+        return d

@@ -14,6 +14,7 @@ from DB.Functions import get_image_flag
 from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoder
 MAX_SIMMILARITY = 100
 IMAGE_SIZE_AUTOENCODER = (128, 128)
+IMAGE_SIZE_AUTOENCODER_1D = 128
 IMAGE_SIZE_YOLO = (224, 224)
 RUN_THOUGH_SIZE = (64, 64, 3)
 
@@ -291,22 +292,23 @@ class ImageAnalyzation:
                          minObjWeight = 0.05,
                          selectedIndex = None
                          ):
+                #comparing whole images, if match return
         
-        if len(imgData1.classes) == 0 and len(imgData2.classes) == 0:
-            compareObjects = False
-        elif selectedIndex is not None:
-            selectedClassdata = imgData1.classes[selectedIndex]
-            imgData1.classes = [selectedClassdata,]
-        else:
-            imgData1.classes = list(filter(lambda x: x.weight >= minObjWeight and x.conf >= minObjConf, imgData1.classes))
-            imgData2.classes = list(filter(lambda x: x.weight >= minObjWeight and x.conf >= minObjConf, imgData2.classes))
-        
-        #comparing whole images, if match return
         imageComparison = 1
         if compareWholeImages:
             imageComparison = 1 - cosine(imgData1.features, imgData2.features)
             if imageComparison == 1:
                 return MAX_SIMMILARITY
+        
+        # if len(imgData1.classes) == 0 and len(imgData2.classes) == 0:
+        #     compareObjects = False
+
+        if selectedIndex is not None:
+            selectedClassdata = imgData1.classes[selectedIndex]
+            imgData1.classes = [selectedClassdata,]
+        else:
+            imgData1.classes = list(filter(lambda x: x.weight >= minObjWeight and x.conf >= minObjConf, imgData1.classes))
+            imgData2.classes = list(filter(lambda x: x.weight >= minObjWeight and x.conf >= minObjConf, imgData2.classes))
         
         flag1 = get_image_flag(list(map(lambda x : x.className, imgData1.classes)))
         flag1 = (flag1[0], flag1[1], flag1[0].bit_count() + flag1[1].bit_count())
@@ -318,6 +320,9 @@ class ImageAnalyzation:
         
         #if the objects from the first image are not matched then image is not a match
         if containSameObjects and flag[2] != flag1[2]:
+            return 0
+        
+        if flag[2] == 0:
             return 0
 
         objectComparison = 1
@@ -360,8 +365,6 @@ class ImageAnalyzation:
             maxWeightObj = max([key for key in weights1.keys()], key=lambda a: weights1[a])
             if maxWeightObj not in map(lambda a: a.className, imgData2.classes):
                 objectComparison *= 1e-6
-            else:
-                objectComparison *= weights2[maxWeightObj]
         return objectComparison
 
     # compares the images by calculating the max object matching and similarity between images
@@ -618,10 +621,10 @@ class ImageAnalyzation:
     def getFetureVectorAutocoder(self, image):
         images = []
         for i in range(0,2):
-            size = (128 *(i+1), 128 *(i+1))
-            img = np.resize(image, size)
-            for x in range(int(size[0]/128)):
-                for y in range(int(size[1]/128)):
-                    images.append(img[y*128 : (y+1)*128, x*128 : (x+1)*128])
+            size = (IMAGE_SIZE_AUTOENCODER_1D *(i+1), IMAGE_SIZE_AUTOENCODER_1D *(i+1))
+            img = cv2.resize(image, size)
+            for x in range(int(size[0]/IMAGE_SIZE_AUTOENCODER_1D)):
+                for y in range(int(size[1]/IMAGE_SIZE_AUTOENCODER_1D)):
+                    images.append(img[y*IMAGE_SIZE_AUTOENCODER_1D : (y+1)*IMAGE_SIZE_AUTOENCODER_1D, x*IMAGE_SIZE_AUTOENCODER_1D : (x+1)*IMAGE_SIZE_AUTOENCODER_1D])
         imagest = list(map(lambda x: self.t(x), images))
         return self.coderDecoderModel.encode(torch.stack(imagest).to(self.device, non_blocking = True)).cpu().detach().numpy().flatten()

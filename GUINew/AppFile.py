@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import *
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt
+from DB.SqliteDB import ImageDB
+from GUINew.DisplayFile import *
 from GUINew.ImageGridFile import ImageGrid
 from GUINew.SearchImageDialogFile import SearchImageDialog
 from GUINew.SearchImageFile import *
@@ -12,12 +14,12 @@ from GUI.GUIFunctions import *
 
 
 class App(QMainWindow):
-    def __init__(self, image_analyzation : ImageAnalyzation):
+    def __init__(self, image_analyzation : ImageAnalyzation, img_db : ImageDB):
         super().__init__()
         self.setWindowTitle("App")
         self.content = QWidget()
         self.image_analyzation = image_analyzation
-        self.setGeometry(200, 200, 1200, 1200)
+        self.img_db = img_db
         self.main_layout = QVBoxLayout()
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
@@ -45,7 +47,13 @@ class App(QMainWindow):
 
         self.menu_bar.addMenu(self.file_action)
         self.menu_bar.addSeparator()
-        # Search bar
+
+        # Settings
+        self.settings_action = QAction("Settings", self.menu_bar)
+        self.settings_action.triggered.connect(self.settings_change)
+        self.menu_bar.addAction(self.settings_action)
+
+        # Search bar ------------------------------------------------------------------------
         self.search_layout = QHBoxLayout()
         self.search_layout.setContentsMargins(0,0,0,0)
 
@@ -75,7 +83,8 @@ class App(QMainWindow):
         self.content.setLayout(self.main_layout)
         self.setCentralWidget(self.content)
 
-        # self.search_image.showImage(imagePath="C:\\Users\\best_intern\\Desktop\\New folder (2)\\1.jpeg")
+        self.setGeometry(200, 200, 1200, 1200)
+
         # self.search_image.hide()
         # self.image_grid.hide()
         
@@ -99,6 +108,46 @@ class App(QMainWindow):
             return
         
         #TODO search from the database using the search params......
+        self.setCursor(Qt.WaitCursor)
+        img_data = search_params.data
+        self.search_image.showImage(imagePath=search_params.imagePath, img_data=img_data)
+        
+        self.img_db.open_connection()
+        imgs = self.img_db.search_by_image([ x.className for x in img_data.classes])#sve slike sa tom odrednjemo klasom
+        self.img_db.close_connection()
+
+        image_list = DisplayList()
+
+        for img in imgs:
+            # if img.orgImage == "C:\\Users\\best_intern\\Downloads\\val2\\000000104424.jpg":
+            #     print("HERE")
+            conf = self.image_analyzation.compareImages(
+                imgData1= img_data,
+                imgData2= img,
+                compareObjects= search_params.compareObjects,
+                compareWholeImages= search_params.compareWholeImages,
+                maxWeightReduction= search_params.maxWeightReduction,
+                containSameObjects= search_params.containSameObjects,
+                confidenceCalculation= search_params.magnitudeCalculation,
+                magnitudeCalculation= search_params.magnitudeCalculation,
+                minObjConf= search_params.minObjConf,
+                minObjWeight= search_params.minObjWeight,
+                selectedIndex= search_params.selectedIndex
+            )
+            print(img.orgImage)
+            image_list.append(DisplayItem(img.orgImage, conf, img))
+        
+        av = image_list.average()
+        image_list.filter_sort(0)
+
+        self.image_grid.addImages(list(map(lambda x : x.image_data,image_list.items)))
+
+        self.setCursor(Qt.ArrowCursor)
+
+
+    def settings_change(self):
+        dialog = SearchImageDialog(None, options_only=True)
+        dialog.exec()
 
     def file_exit_action(self):
         QApplication.quit()

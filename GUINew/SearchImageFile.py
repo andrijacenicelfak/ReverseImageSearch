@@ -21,7 +21,6 @@ class SearchImageView(QWidget):
         self.layout_form.addWidget(self.content)
 
     def showImage(self, imagePath : str, img_data : ImageData = None):
-        #TODO: PASS THROUGH ImageData and load the image before
         # Image ------------------------------------------
         if self.image:
             self.content_layout.removeWidget(self.image)
@@ -31,7 +30,7 @@ class SearchImageView(QWidget):
         # self.px = QPixmap(imagePath).scaled(width, height)
         img = img_data.orgImage
         self.org_img = numpy_to_pixmap(img).scaled(self.image_width, self.image_height)
-        self.bb_img = numpy_to_pixmap(drawClasses(self.img_data, img.copy(), fontSize=img.shape[0]//600)).scaled(self.image_width, self.image_height)
+        self.bb_img = numpy_to_pixmap(drawClasses(img_data, img.copy(), fontSize=img.shape[0]/200)).scaled(self.image_width, self.image_height)
         self.image.setPixmap(self.org_img)
         self.content_layout.addWidget(self.image)
 
@@ -47,7 +46,7 @@ class SearchImageView(QWidget):
         self.path_lbl.setWordWrap(True)
         self.content_desc_layout.addWidget(self.path_lbl)
 
-        self.objects_lbl = QLabel(text=f"Objects : cat, cat, cat, cat")
+        self.objects_lbl = QLabel(text=f"Objects : {list(map(lambda x: x.className, img_data.classes))}")
         self.objects_lbl.setWordWrap(True)
         self.content_desc_layout.addWidget(self.objects_lbl)
 

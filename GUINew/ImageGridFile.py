@@ -22,10 +22,6 @@ class ImageGrid(QScrollArea):
         self.layout_gird.setContentsMargins(0,0,0,0)
         self.item_size = item_size
         self.max_collum_count = max(self.content.width() // self.item_size, 1)
-        #TODO: remove this, just example
-        for i in range(16):
-            ip = ImagePreview(image_path="C:\\Users\\best_intern\\Desktop\\New folder (2)\\1.jpeg", description=f"This is\n the\n {i}th img")
-            self.layout_gird.addWidget(ip, i // self.max_collum_count, i % self.max_collum_count)
 
         self.content.setLayout(self.layout_gird)
         self.setWidget(self.content)
@@ -67,6 +63,6 @@ class ImageGrid(QScrollArea):
     def addImages(self, data : list[ImageData]):
         self.removeAllImages()
         for i, d in enumerate(data):
-            classes = reduce(lambda a, b: f"{a} {b.className}" , d.classes, initial="")
-            ip = ImagePreview(d.orgImage, description=f"Path:{d.orgImage}\nClasses: {classes}")
+            classes = reduce((lambda a, b: a+" " +b.className), d.classes, "")
+            ip = ImagePreview(d.orgImage, description=f"Classes: {classes}")
             self.layout_gird.addWidget(ip, i // self.max_collum_count, i % self.max_collum_count)

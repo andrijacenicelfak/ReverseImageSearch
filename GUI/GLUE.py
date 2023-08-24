@@ -5,6 +5,7 @@ import os
 import time
 import cv2
 import sys
+from FileSystem.FileExplorerFile import search
 from GUI.VideoPlayerFile_old import VideoPlayer
 #sys.path.append(r"C:\dev\Demo\Video")
 from PyQt5.QtWidgets import (
@@ -31,41 +32,10 @@ from PyQt5.QtGui import (
     QDesktopServices,   
     QIcon,
 )
+from GUINew.DisplayFile import *
+
 sys.path.append(".\Video")
 from Video.histoDThresh import  summ_video_parallel,FrameData
-
-class DisplayItem:
-    def __init__(self,image_path,accuracy):
-        self.image_path=image_path
-        self.accuracy=accuracy
-
-class DisplayList:
-
-    def __init__(self):
-        self.items=[]
-
-    def __iter__(self):
-        return iter(self.items)
-    
-    def append(self,item):
-        self.items.append(item)
-
-    def filter_sort(self,val):
-        self.items=[item for item in self.items if item.accuracy>=val]
-        self.items.sort(key=lambda item: item.accuracy,reverse=True)       
- 
-    def clear(self):
-        self.items.clear()
-
-    def average(self):
-        suma = 0
-        if len(self.items) == 0:
-            return 0
-        maxel = max(self.items, key=lambda a: a.accuracy)
-        for i in self.items:
-            suma += i.accuracy
-        suma -= maxel.accuracy
-        return suma / max(1, len(self.items))
 
 class MyThread(QRunnable):
     
@@ -130,7 +100,8 @@ class GUI(QMainWindow):
         img_db.open_connection()
         
         with mp.Manager() as manager:
-            for batch in search2(path):
+            for batch in search(path):
+                print(batch)
                 for img_path in batch:
                     queue=manager.Queue() 
                     if '.mp4' not in img_path:
@@ -289,25 +260,3 @@ class GUI(QMainWindow):
         self.video_player.mediaPlayer.setPosition(position)
         self.video_player.show() 
         # time.sleep(100)     
-def search2(startDirectory):
-    file_list = os.listdir(startDirectory)
-    yield_this=[]
-    counter=0
-    for file_name in file_list:
-        if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.mp4')):
-            startDirectory = os.path.normpath(startDirectory)
-            image_path = os.path.join(startDirectory , file_name)
-            
-            if image_path.endswith('.mp4'):
-                yield [image_path]
-            else:
-                yield_this.append(image_path)
-                counter+=1
-                    
-                if counter==128:
-                    counter=0
-                    yield yield_this
-                    yield_this.clear()
-            
-            if yield_this:
-                yield yield_this

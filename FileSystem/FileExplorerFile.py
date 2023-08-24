@@ -6,6 +6,7 @@ class FileExplorer:
         self.images = []
         self.image_extensions = ['.bmp', '.pbm', '.pgm', '.gif', '.sr', '.ras', '.jpeg', '.jpg', '.jpe', '.jp2', '.tiff', '.tif', '.png'] # list of image file formats supported by OpenCV
         self.loadImages()
+
     def search(self) -> list[str]:
         images = []
         for root, _, files in os.walk(self.startDirectory):
@@ -45,3 +46,27 @@ class FileExplorer:
     
     def randomImage(self):
         return self.images[int(random.random() * len(self.images))]
+    
+def search(startDirectory):
+    file_list = os.listdir(startDirectory)
+    yield_this=[]
+    counter=0
+    for file_name in file_list:
+        if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.mp4')):
+            startDirectory = os.path.normpath(startDirectory)
+            image_path = os.path.join(startDirectory , file_name)
+            
+            if image_path.endswith('.mp4'):
+                yield [image_path]
+            else:
+                yield_this.append(image_path)
+                counter+=1
+                    
+                if counter==128:
+                    counter=0
+                    y = yield_this
+                    yield_this = []
+                    yield y
+            
+    if yield_this:
+        yield yield_this
