@@ -14,13 +14,14 @@ from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
 
 class ImageGrid(QScrollArea):
-    def __init__(self, item_size = 350):
+    def __init__(self, item_size = 200, text_enabled = True):
         super().__init__()
         self.content = QWidget()
         self.layout_gird = QGridLayout()
         self.layout_gird.setSpacing(0)
         self.layout_gird.setContentsMargins(0,0,0,0)
-        self.item_size = item_size
+        self.text_enabled = text_enabled
+        self.item_size = item_size + ( int(item_size*2/3) if text_enabled else 0)
         self.max_collum_count = max(self.content.width() // self.item_size, 1)
 
         self.content.setLayout(self.layout_gird)
@@ -64,5 +65,5 @@ class ImageGrid(QScrollArea):
         self.removeAllImages()
         for i, d in enumerate(data):
             classes = reduce((lambda a, b: a+" " +b.className), d.classes, "")
-            ip = ImagePreview(d.orgImage, description=f"Classes: {classes}")
+            ip = ImagePreview(d.orgImage, description=f"Classes: {classes}", text_enabled=self.text_enabled)
             self.layout_gird.addWidget(ip, i // self.max_collum_count, i % self.max_collum_count)

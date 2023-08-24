@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt
 from DB.SqliteDB import ImageDB
+import DB.Functions as dbf
 from GUINew.DisplayFile import *
 from GUINew.ImageGridFile import ImageGrid
 from GUINew.SearchImageDialogFile import SearchImageDialog
@@ -97,30 +98,44 @@ class App(QMainWindow):
         print("folder")
     
     def search_keyword_action(self):
-        #TODO
+        self.search_image.hide()
+        text = self.search_box.text()
+        text_words = text.split(' ')
+        text_words = list(filter(lambda x : x in dbf.model_names, text_words))
+        self.img_db.open_connection()
+        imgs = self.img_db.search_by_image(text_words)
+        self.img_db.close_connection()
+
+        imgs_display = DisplayList()
+        for img in imgs:
+            imgs_display.append(DisplayItem(img.orgImage, 0, img))
+
+        self.image_grid.addImages(list(map(lambda x : x.image_data,imgs_display.items)))
+
         print(self.search_box.text())
 
     def search_image_action(self):
         dialog = SearchImageDialog(self.image_analyzation)
         dialog.exec()
         search_params = dialog.search_params
-        if search_params is None:
+        if not dialog.has_image:
             return
         
-        #TODO search from the database using the search params......
         self.setCursor(Qt.WaitCursor)
-        img_data = search_params.data
+        img_data : ImageData = search_params.data
+        self.search_image.show()
         self.search_image.showImage(imagePath=search_params.imagePath, img_data=img_data)
         
         self.img_db.open_connection()
-        imgs = self.img_db.search_by_image([ x.className for x in img_data.classes])#sve slike sa tom odrednjemo klasom
+        print(search_params.selectedIndex)
+        imgs = self.img_db.search_by_image([ x.className for x in img_data.classes] if search_params.selectedIndex is None else  [img_data.classes[search_params.selectedIndex].className,])#sve slike sa tom odrednjemo klasom
         self.img_db.close_connection()
 
         image_list = DisplayList()
 
         for img in imgs:
-            # if img.orgImage == "C:\\Users\\best_intern\\Downloads\\val2\\000000104424.jpg":
-            #     print("HERE")
+            if img.orgImage == "C:\\Users\\best_intern\\Downloads\\val2\\000000104424.jpg":
+                print("HERE")
             conf = self.image_analyzation.compareImages(
                 imgData1= img_data,
                 imgData2= img,
@@ -134,11 +149,10 @@ class App(QMainWindow):
                 minObjWeight= search_params.minObjWeight,
                 selectedIndex= search_params.selectedIndex
             )
-            print(img.orgImage)
             image_list.append(DisplayItem(img.orgImage, conf, img))
         
         av = image_list.average()
-        image_list.filter_sort(0)
+        image_list.filter_sort(av)
 
         self.image_grid.addImages(list(map(lambda x : x.image_data,image_list.items)))
 

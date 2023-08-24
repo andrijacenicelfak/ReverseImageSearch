@@ -303,7 +303,7 @@ class ImageAnalyzation:
         # if len(imgData1.classes) == 0 and len(imgData2.classes) == 0:
         #     compareObjects = False
 
-        if selectedIndex is not None:
+        if selectedIndex is not None and selectedIndex < len(imgData1.classes):
             selectedClassdata = imgData1.classes[selectedIndex]
             imgData1.classes = [selectedClassdata,]
         else:

@@ -16,7 +16,7 @@ class DisplayList:
         self.items.append(item)
 
     def filter_sort(self,val):
-        self.items=[item for item in self.items if item.accuracy>=val]
+        self.items=[item for item in self.items if item.accuracy>=val and item.accuracy > 1e-4]
         self.items.sort(key=lambda item: item.accuracy,reverse=True)       
  
     def clear(self):

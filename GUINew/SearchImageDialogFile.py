@@ -167,6 +167,7 @@ class SearchImageDialog(QDialog):
 
     def selection_change(self):
         self.search_params.selectedIndex = None if self.object_selection.currentData() == -1 else self.object_selection.currentData()
+        print(self.search_params.selectedIndex)
         disable_controls = self.search_params.selectedIndex is not None
         self.compare_objects.setDisabled(disable_controls)
         self.compare_whole_images.setDisabled(disable_controls)
