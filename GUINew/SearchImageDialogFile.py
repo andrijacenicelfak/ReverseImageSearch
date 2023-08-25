@@ -10,6 +10,7 @@ from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
 from PyQt5.QtGui import QDoubleValidator
 
+
 class SearchImageDialog(QDialog):
     def __init__(self, image_analyzation : ImageAnalyzation, image_width = 400, image_height = 400 , options_only = False):
         super().__init__()
