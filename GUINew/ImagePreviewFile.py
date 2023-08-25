@@ -15,8 +15,9 @@ from GUI.GUIFunctions import *
 class ImagePreview(QWidget):
     def __init__(
         self,
-        image_path: str,
         description: str,
+        image_path: str = None,
+        px_image: QPixmap = None,
         width=200,
         height=200,
         text_enabled=True,
@@ -37,9 +38,11 @@ class ImagePreview(QWidget):
 
         self.image = QLabel(parent=self)
         self.image.setMaximumSize(width, height)
-        self.px = QPixmap(image_path).scaled(width, height)
+        if image_path is not None:
+            self.px = QPixmap(image_path).scaled(width, height)
+        elif px_image is not None:
+            self.px = px_image
         self.image.setPixmap(self.px)
-
         self.content_layout.addWidget(self.image, 0, 0)
         self.content.setLayout(self.content_layout)
 
@@ -52,7 +55,7 @@ class ImagePreview(QWidget):
         self.setMaximumSize(width + textWidth if text_enabled else 0, height)
         self.setMinimumSize(width + textWidth if text_enabled else 0, height)
         self.mouseDoubleClickEvent = self.doubleClicked
-
+    
     def doubleClicked(self, event):
         # TODO : ADD FOR VIDEO
         if not self.image_path.endswith(".mp4"):

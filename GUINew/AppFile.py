@@ -22,7 +22,7 @@ class App(QMainWindow):
     def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
         super().__init__()
 
-        # qInstallMessageHandler(handle)
+        qInstallMessageHandler(handle)
 
         self.setWindowTitle("App")
         self.content = QWidget()
@@ -181,7 +181,7 @@ class App(QMainWindow):
         av = image_list.average()
         image_list.filter_sort(av)
 
-        self.image_grid.addImages(list(map(lambda x: x.image_data, image_list.items)))
+        self.image_grid.add_images_mt(list(map(lambda x: x.image_data, image_list.items)))
 
         self.setCursor(Qt.ArrowCursor)
 

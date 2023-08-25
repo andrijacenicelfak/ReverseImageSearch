@@ -8,11 +8,13 @@ import sys
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QCoreApplication
 from GUINew.ImagePreviewFile import ImagePreview
 
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
+
+IMAGE_SIZE = 200
 
 
 class ImageGrid(QScrollArea):
@@ -87,55 +89,53 @@ class ImageGrid(QScrollArea):
         ip = ImagePreview(
             d.orgImage,
             description=f"Classes: {classes}",
-            text_enabled=self.text_enabled,
+            text_enabled = self.text_enabled,
         )
         self.layout_gird.addWidget(
             ip, i // self.max_collum_count, i % self.max_collum_count
         )
 
-    def add_to_grid(self, image: ImagePreview):
-        image.parent = self.content
-        i = self.layout_gird.count()
-        self.layout_gird.addWidget(
-            image, i // self.max_collum_count, i % self.max_collum_count
-        )
+    def add_to_grid(self, data : [tuple]):
+        for image, desc in data:
+            i = self.layout_gird.count()
+            ip = ImagePreview(desc, None, image)
+            self.layout_gird.addWidget(
+                ip, i // self.max_collum_count, i % self.max_collum_count
+            )
 
     def done_adding(self):
         print("Done")
 
     def add_images_mt(self, data: list[ImageData]):
         self.removeAllImages()
-        self.image_adder = ImageAddWorker(data, self)
+        self.image_adder = ImageAddWorker(data)
         self.image_adder.progress.connect(self.loading_percent_callback)
         self.image_adder.add.connect(self.add_to_grid)
         self.image_adder.done.connect(self.done_adding)
-        self.image_adder.done.connect(self.image_adder.quit)
-        self.image_adder.run()
+        self.image_adder.start()
 
 
 class ImageAddWorker(QThread):
     done = pyqtSignal()
     progress = pyqtSignal(int)
-    add = pyqtSignal(ImagePreview)
+    add = pyqtSignal(list)
 
-    def __init__(self, data: [ImageData], image_grid: ImageGrid = None):
+    def __init__(self, data: [ImageData]):
         super().__init__()
         self.data = data
-        self.image_grid = image_grid
 
     def run(self):
         data_len = len(self.data)
+        data_emit = []
         for i, d in enumerate(self.data):
             classes = reduce((lambda a, b: a + " " + b.className), d.classes, "")
-            ip = ImagePreview(
-                d.orgImage,
-                description=f"Classes: {classes}",
-                text_enabled=self.text_enabled,
-            )
-            if self.image_grid is not None:
-                self.image_grid.add_to_grid(ip)
-            else:
-                self.add.emit(ip)
-            if i % 10 == 0:
+            px = QPixmap(d.orgImage).scaled(IMAGE_SIZE, IMAGE_SIZE)
+            data_emit.append((px, f"Classes: {classes}"))
+            if i % 5 == 0:
+                self.add.emit(data_emit)
+                data_emit = []
+                self.msleep(1)
                 self.progress.emit(int(100 * i / data_len))
+        self.add.emit(data_emit)
+        self.progress.emit(100)
         self.done.emit()
