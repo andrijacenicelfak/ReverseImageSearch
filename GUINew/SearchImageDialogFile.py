@@ -146,8 +146,9 @@ class SearchImageDialog(QDialog):
         
         self.search_params.imagePath = photo_path
         self.org_image = cv2.imread(photo_path)
+        self.search_params.data = self.image_analyzation.getImageData(self.org_image, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
         self.org_image = cv2.cvtColor(self.org_image, cv2.COLOR_BGR2RGB)
-        self.search_params.data = self.image_analyzation.getImageData(self.org_image, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True, classesConfidence=0.35)
+        self.search_params.data.orgImage = self.org_image # The reson returnOriginalImage is False is because the color correction above 
 
         while self.object_selection.count() > 1:
             self.object_selection.removeItem(1)

@@ -101,7 +101,6 @@ class GUI(QMainWindow):
         
         with mp.Manager() as manager:
             for batch in search(path):
-                print(batch)
                 for img_path in batch:
                     queue=manager.Queue() 
                     if '.mp4' not in img_path:

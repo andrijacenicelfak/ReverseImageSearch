@@ -1,4 +1,5 @@
 
+from concurrent.futures import ThreadPoolExecutor
 from functools import reduce
 import typing
 from PyQt5 import QtCore
@@ -63,7 +64,16 @@ class ImageGrid(QScrollArea):
 
     def addImages(self, data : list[ImageData]):
         self.removeAllImages()
-        for i, d in enumerate(data):
-            classes = reduce((lambda a, b: a+" " +b.className), d.classes, "")
-            ip = ImagePreview(d.orgImage, description=f"Classes: {classes}", text_enabled=self.text_enabled)
-            self.layout_gird.addWidget(ip, i // self.max_collum_count, i % self.max_collum_count)
+        for d in enumerate(data):
+            self.add_image(d)
+
+    def add_image(self, data):
+        i, d = None, None
+        if type(data) is tuple:
+            i,d =data
+        else:
+            d = data
+            i = self.layout_gird.count()
+        classes = reduce((lambda a, b: a+" " +b.className), d.classes, "")
+        ip = ImagePreview(d.orgImage, description=f"Classes: {classes}", text_enabled=self.text_enabled)
+        self.layout_gird.addWidget(ip, i // self.max_collum_count, i % self.max_collum_count)

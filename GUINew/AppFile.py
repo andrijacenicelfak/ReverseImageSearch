@@ -2,7 +2,7 @@ from functools import reduce
 from PyQt5.QtWidgets import *
 
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, qInstallMessageHandler
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
 from GUINew.DisplayFile import *
@@ -13,10 +13,14 @@ from GUINew.SearchImageFile import *
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
 
-
+def handle(type, context, message):
+    pass
 class App(QMainWindow):
     def __init__(self, image_analyzation : ImageAnalyzation, img_db : ImageDB):
         super().__init__()
+
+        qInstallMessageHandler(handle)
+
         self.setWindowTitle("App")
         self.content = QWidget()
         self.image_analyzation = image_analyzation

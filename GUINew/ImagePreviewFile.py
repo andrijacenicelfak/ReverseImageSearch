@@ -45,5 +45,6 @@ class ImagePreview(QWidget):
         self.mouseDoubleClickEvent = self.doubleClicked
     
     def doubleClicked(self, event):
+        #TODO : ADD FOR VIDEO
         if not self.image_path.endswith(".mp4"):
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.image_path))
