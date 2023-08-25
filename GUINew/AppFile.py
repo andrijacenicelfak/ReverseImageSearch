@@ -2,7 +2,7 @@ from functools import reduce
 from PyQt5.QtWidgets import *
 
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, qInstallMessageHandler
+from PyQt5.QtCore import Qt, qInstallMessageHandler, QObject, QThread, pyqtSignal
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
 from GUINew.DisplayFile import *
@@ -15,11 +15,12 @@ from GUI.GUIFunctions import *
 
 def handle(type, context, message):
     pass
+
 class App(QMainWindow):
     def __init__(self, image_analyzation : ImageAnalyzation, img_db : ImageDB):
         super().__init__()
 
-        qInstallMessageHandler(handle)
+        # qInstallMessageHandler(handle)
 
         self.setWindowTitle("App")
         self.content = QWidget()
@@ -81,9 +82,13 @@ class App(QMainWindow):
         #Main view
         self.search_image = SearchImageView()
         self.main_layout.addWidget(self.search_image)
-        self.image_grid = ImageGrid()
+        self.image_grid = ImageGrid(loading_percent_callback=self.set_loading_percent)
         self.main_layout.addWidget(self.image_grid)
 
+        #loader
+        self.loading_percent_widget = QProgressBar(self.content)
+        self.main_layout.addWidget(self.loading_percent_widget)
+        self.set_loading_percent(100)
 
         self.content.setLayout(self.main_layout)
         self.setCentralWidget(self.content)
@@ -114,7 +119,10 @@ class App(QMainWindow):
         for img in imgs:
             imgs_display.append(DisplayItem(img.orgImage, 0, img))
 
-        self.image_grid.addImages(list(map(lambda x : x.image_data,imgs_display.items)))
+        self.set_loading_percent(0)
+
+        self.image_add_thread = QThread()
+        self.image_grid.add_images_mt(list(map(lambda x : x.image_data,imgs_display.items)))
 
         print(self.search_box.text())
 
@@ -162,6 +170,12 @@ class App(QMainWindow):
 
         self.setCursor(Qt.ArrowCursor)
 
+    def set_loading_percent(self, percent):
+        if percent == 0:
+            self.loading_percent_widget.show()
+        if percent > 98:
+            self.loading_percent_widget.hide()
+        self.loading_percent_widget.setValue(int(percent))
 
     def settings_change(self):
         dialog = SearchImageDialog(None, options_only=True)
