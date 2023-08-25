@@ -11,15 +11,24 @@ from PyQt5.QtCore import Qt, QUrl
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
 
+
 class ImagePreview(QWidget):
-    def __init__(self, image_path : str, description : str, width = 200, height = 200, text_enabled = True, textWidth = 150) -> None:
+    def __init__(
+        self,
+        image_path: str,
+        description: str,
+        width=200,
+        height=200,
+        text_enabled=True,
+        textWidth=150,
+    ) -> None:
         super().__init__()
         self.layout_form = QFormLayout()
         self.image_path = image_path
         self.content = QWidget()
         self.content_layout = QGridLayout()
         self.content_layout.setSpacing(0)
-        self.content_layout.setContentsMargins(0,0,0,0)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
         if text_enabled:
             self.lbl = QLabel(parent=self, text=description)
             self.lbl.setMaximumSize(textWidth, height)
@@ -36,15 +45,15 @@ class ImagePreview(QWidget):
 
         self.layout_form.addWidget(self.content)
         self.layout_form.setSpacing(0)
-        self.layout_form.setContentsMargins(0,0,0,0)
+        self.layout_form.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout_form)
         self.setToolTip(description)
 
         self.setMaximumSize(width + textWidth if text_enabled else 0, height)
         self.setMinimumSize(width + textWidth if text_enabled else 0, height)
         self.mouseDoubleClickEvent = self.doubleClicked
-    
+
     def doubleClicked(self, event):
-        #TODO : ADD FOR VIDEO
+        # TODO : ADD FOR VIDEO
         if not self.image_path.endswith(".mp4"):
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.image_path))

@@ -13,11 +13,13 @@ from GUINew.SearchImageFile import *
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
 
+
 def handle(type, context, message):
     pass
 
+
 class App(QMainWindow):
-    def __init__(self, image_analyzation : ImageAnalyzation, img_db : ImageDB):
+    def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
         super().__init__()
 
         # qInstallMessageHandler(handle)
@@ -61,7 +63,7 @@ class App(QMainWindow):
 
         # Search bar ------------------------------------------------------------------------
         self.search_layout = QHBoxLayout()
-        self.search_layout.setContentsMargins(0,0,0,0)
+        self.search_layout.setContentsMargins(0, 0, 0, 0)
 
         self.search_box = QLineEdit("", self.menu_bar)
         self.search_layout.addWidget(self.search_box)
@@ -79,13 +81,13 @@ class App(QMainWindow):
 
         self.main_layout.addWidget(self.search_widget)
 
-        #Main view
+        # Main view
         self.search_image = SearchImageView()
         self.main_layout.addWidget(self.search_image)
         self.image_grid = ImageGrid(loading_percent_callback=self.set_loading_percent)
         self.main_layout.addWidget(self.image_grid)
 
-        #loader
+        # loader
         self.loading_percent_widget = QProgressBar(self.content)
         self.main_layout.addWidget(self.loading_percent_widget)
         self.set_loading_percent(100)
@@ -97,20 +99,20 @@ class App(QMainWindow):
 
         # self.search_image.hide()
         # self.image_grid.hide()
-        
+
     def file_add_action(self):
-        #TODO
+        # TODO
         print("add")
 
     def file_add_folder_action(self):
-        #TODO
+        # TODO
         print("folder")
-    
+
     def search_keyword_action(self):
         self.search_image.hide()
         text = self.search_box.text()
-        text_words = text.split(' ')
-        text_words = list(filter(lambda x : x in dbf.model_names, text_words))
+        text_words = text.split(" ")
+        text_words = list(filter(lambda x: x in dbf.model_names, text_words))
         self.img_db.open_connection()
         imgs = self.img_db.search_by_image(text_words)
         self.img_db.close_connection()
@@ -122,7 +124,9 @@ class App(QMainWindow):
         self.set_loading_percent(0)
 
         self.image_add_thread = QThread()
-        self.image_grid.add_images_mt(list(map(lambda x : x.image_data,imgs_display.items)))
+        self.image_grid.add_images_mt(
+            list(map(lambda x: x.image_data, imgs_display.items))
+        )
 
         print(self.search_box.text())
 
@@ -132,41 +136,52 @@ class App(QMainWindow):
         search_params = dialog.search_params
         if not dialog.has_image:
             return
-        
+
         self.setCursor(Qt.WaitCursor)
-        img_data : ImageData = search_params.data
+        img_data: ImageData = search_params.data
         self.search_image.show()
-        self.search_image.showImage(imagePath=search_params.imagePath, img_data=img_data)
-        
+        self.search_image.showImage(
+            imagePath=search_params.imagePath, img_data=img_data
+        )
+
         self.img_db.open_connection()
         print(search_params.selectedIndex)
-        imgs = self.img_db.search_by_image([ x.className for x in img_data.classes] if search_params.selectedIndex is None else  [img_data.classes[search_params.selectedIndex].className,])#sve slike sa tom odrednjemo klasom
+        imgs = self.img_db.search_by_image(
+            [x.className for x in img_data.classes]
+            if search_params.selectedIndex is None
+            else [
+                img_data.classes[search_params.selectedIndex].className,
+            ]
+        )  # sve slike sa tom odrednjemo klasom
         self.img_db.close_connection()
 
         image_list = DisplayList()
 
         for img in imgs:
-            if img.orgImage == "C:\\Users\\best_intern\\Downloads\\val2\\000000104424.jpg":
+            if (
+                img.orgImage
+                == "C:\\Users\\best_intern\\Downloads\\val2\\000000104424.jpg"
+            ):
                 print("HERE")
             conf = self.image_analyzation.compareImages(
-                imgData1= img_data,
-                imgData2= img,
-                compareObjects= search_params.compareObjects,
-                compareWholeImages= search_params.compareWholeImages,
-                maxWeightReduction= search_params.maxWeightReduction,
-                containSameObjects= search_params.containSameObjects,
-                confidenceCalculation= search_params.magnitudeCalculation,
-                magnitudeCalculation= search_params.magnitudeCalculation,
-                minObjConf= search_params.minObjConf,
-                minObjWeight= search_params.minObjWeight,
-                selectedIndex= search_params.selectedIndex
+                imgData1=img_data,
+                imgData2=img,
+                compareObjects=search_params.compareObjects,
+                compareWholeImages=search_params.compareWholeImages,
+                maxWeightReduction=search_params.maxWeightReduction,
+                containSameObjects=search_params.containSameObjects,
+                confidenceCalculation=search_params.magnitudeCalculation,
+                magnitudeCalculation=search_params.magnitudeCalculation,
+                minObjConf=search_params.minObjConf,
+                minObjWeight=search_params.minObjWeight,
+                selectedIndex=search_params.selectedIndex,
             )
             image_list.append(DisplayItem(img.orgImage, conf, img))
-        
+
         av = image_list.average()
         image_list.filter_sort(av)
 
-        self.image_grid.addImages(list(map(lambda x : x.image_data,image_list.items)))
+        self.image_grid.addImages(list(map(lambda x: x.image_data, image_list.items)))
 
         self.setCursor(Qt.ArrowCursor)
 

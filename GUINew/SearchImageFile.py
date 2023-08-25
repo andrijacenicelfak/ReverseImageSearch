@@ -1,16 +1,24 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QFormLayout, QLabel, QVBoxLayout, QCheckBox
+from PyQt5.QtWidgets import (
+    QWidget,
+    QHBoxLayout,
+    QFormLayout,
+    QLabel,
+    QVBoxLayout,
+    QCheckBox,
+)
 
 from PyQt5.QtWidgets import QWidget
 
 from GUI.GUIFunctions import *
 
+
 class SearchImageView(QWidget):
-    def __init__(self, width = 400, height = 400) -> None:
+    def __init__(self, width=400, height=400) -> None:
         super().__init__()
         self.image_width = width
         self.image_height = height
         self.content_layout = QHBoxLayout()
-        self.content_layout.setContentsMargins(0,0,0,0)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content = QWidget()
         self.content.setLayout(self.content_layout)
         self.image = None
@@ -20,7 +28,7 @@ class SearchImageView(QWidget):
         self.setLayout(self.layout_form)
         self.layout_form.addWidget(self.content)
 
-    def showImage(self, imagePath : str, img_data : ImageData = None):
+    def showImage(self, imagePath: str, img_data: ImageData = None):
         # Image ------------------------------------------
         if self.image:
             self.content_layout.removeWidget(self.image)
@@ -30,7 +38,9 @@ class SearchImageView(QWidget):
         # self.px = QPixmap(imagePath).scaled(width, height)
         img = img_data.orgImage
         self.org_img = numpy_to_pixmap(img).scaled(self.image_width, self.image_height)
-        self.bb_img = numpy_to_pixmap(drawClasses(img_data, img.copy(), fontSize=img.shape[0]/200)).scaled(self.image_width, self.image_height)
+        self.bb_img = numpy_to_pixmap(
+            drawClasses(img_data, img.copy(), fontSize=img.shape[0] / 200)
+        ).scaled(self.image_width, self.image_height)
         self.image.setPixmap(self.org_img)
         self.content_layout.addWidget(self.image)
 
@@ -46,7 +56,9 @@ class SearchImageView(QWidget):
         self.path_lbl.setWordWrap(True)
         self.content_desc_layout.addWidget(self.path_lbl)
 
-        self.objects_lbl = QLabel(text=f"Objects : {list(map(lambda x: x.className, img_data.classes))}")
+        self.objects_lbl = QLabel(
+            text=f"Objects : {list(map(lambda x: x.className, img_data.classes))}"
+        )
         self.objects_lbl.setWordWrap(True)
         self.content_desc_layout.addWidget(self.objects_lbl)
 
@@ -56,7 +68,6 @@ class SearchImageView(QWidget):
         self.draw_bb.clicked.connect(self.toggleBoundingBox)
         self.content_desc_layout.addWidget(self.draw_bb)
         self.content_layout.addWidget(self.content_desc)
-
 
     def toggleBoundingBox(self):
         self.image.setPixmap(self.bb_img if self.draw_bb.isChecked() else self.org_img)
