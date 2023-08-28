@@ -129,7 +129,12 @@ class ImageAddWorker(QThread):
         data_emit = []
         for i, d in enumerate(self.data):
             classes = reduce((lambda a, b: a + " " + b.className), d.classes, "")
-            px = QPixmap(d.orgImage).scaled(IMAGE_SIZE, IMAGE_SIZE)
+            
+            px = QPixmap(d.orgImage)
+            # if px.isNull():
+            #     print("NIJE UCITANO : " + d.orgImage)
+            #     continue
+            px = px.scaled(IMAGE_SIZE, IMAGE_SIZE)
             data_emit.append((px, f"Classes: {classes}"))
             if i % 5 == 0:
                 self.add.emit(data_emit)
