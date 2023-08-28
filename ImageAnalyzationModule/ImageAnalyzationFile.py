@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import reduce
 import time
 import cv2
 from ultralytics import YOLO
@@ -183,7 +184,6 @@ class ImageAnalyzation:
             self.t = torchvision.transforms.Compose(
                 [
                     torchvision.transforms.ToTensor(),
-                    torchvision.transforms.Normalize((0.5), (0.5)),
                 ]
             )
             self.coderDecoderModel = aedType()
@@ -693,19 +693,27 @@ class ImageAnalyzation:
         treshhold=0.1,
         confidenceCalculation=False,
         magnitudeCalculation=False,
+        classNameComparison= True,
+        scaleDown = True,
+        scale = (0.9, 10)
     ):
         if icd1.features is None or icd2.features is None:
             raise Exception("Feature vector is None!")
         if icd1.weight is None or icd2.weight is None:
             raise Exception("No weights for calculating similarity!")
-        if icd1.className != icd2.className:
+        if classNameComparison and icd1.className != icd2.className:
             return 0
         # dist = (1 - cosine(icd1.features, icd2.features))
         dist = self.vectorDistance(
             icd1.features, icd2.features, magnitudeCalculation=magnitudeCalculation
         )
         # The values seem to be between 0.6 - 1.0
-        dist = (dist - 0.6) * 2.5
+        # fdif = list(filter(lambda x: x > 1e-4, icd2.features - icd1.features))
+        # s = str(reduce(lambda a,b: a + f"{b} ", fdif, ""))
+        # print(s)
+        # print(len(fdif))
+        if scaleDown:
+            dist = (dist - scale[0]) * scale[1]
         # Values 0.0 - 1.0
         if confidenceCalculation:  # Worse results
             dist = dist * icd1.conf * icd2.conf

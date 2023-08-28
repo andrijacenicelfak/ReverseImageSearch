@@ -1,4 +1,5 @@
 from functools import reduce
+import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QThread
@@ -13,22 +14,26 @@ from GUI.GUIFunctions import *
 import multiprocessing as mp
 from FileSystem.FileExplorerFile import search
 
-from Video.histoDThresh import  summ_video_parallel,FrameData
+from Video.histoDThresh import summ_video_parallel
 from GUINew.ThreadsFile import *
+import os
 
+TEMP_VIDEO_FILE_PATH = os.getenv('LOCALAPPDATA') + "\\Reverse"
+VIDEO_THUMBNAIL_SIZE = 300
+SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
 def handle(type, context, message):
     pass
 
 class App(QMainWindow):
     def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
         super().__init__()
-
+        print(TEMP_VIDEO_FILE_PATH)
         #
-        self.thread_manager=MyThreadManager()
-        self.num_of_processes=mp.cpu_count()
-        self.pool=mp.Pool(self.num_of_processes) 
+        self.thread_manager = MyThreadManager()
+        self.num_of_processes = mp.cpu_count()
+        self.pool = mp.Pool(self.num_of_processes)
         # qInstallMessageHandler(handle)
-        
+
         #
         self.setWindowTitle("App")
         self.content = QWidget()
@@ -101,67 +106,89 @@ class App(QMainWindow):
         self.content.setLayout(self.main_layout)
         self.setCentralWidget(self.content)
 
-        self.setGeometry(200, 200, 1200, 1200)
-
-        # self.search_image.hide()
-        # self.image_grid.hide()
+        self.setGeometry(100, 100, 900, 900)
 
     def file_add_action(self):
-        # TODO
-        print("add")
+        options = QFileDialog.Options()
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Photo",
+            "",
+            "Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png *.mp4)",
+            options=options,
+        )
+        self.file_add_image_db(path, commit=True)
+
+    def file_add_image_db(self, path, commit=False):
+        image = cv2.imread(path)
+        image_data = self.image_analyzation.getImageData(
+            image,
+            classesData=True,
+            imageFeatures=True,
+            objectsFeatures=True,
+            returnOriginalImage=False,
+            classesConfidence=0.35,
+        )
+        image_data.orgImage = path
+        self.img_db.addImage(image_data, commit_flag=commit)
+
+    def file_add_video_db(self, path, queue, commit=False):
+        summ_video_parallel(path, queue, self.num_of_processes, self.pool)
+        i = 0
+        os.makedirs(TEMP_VIDEO_FILE_PATH, exist_ok=True)  ##x
+        while i != self.num_of_processes:
+            frame_data = queue.get()
+            if frame_data is None:
+                i += 1
+                continue
+
+            video_name = os.path.basename(path)  ##x
+            image_data = self.image_analyzation.getImageData(
+                frame_data.frame,
+                classesData=True,
+                imageFeatures=True,
+                objectsFeatures=True,
+                returnOriginalImage=False,
+                classesConfidence=0.35,
+            )
+            fake_image_path =  TEMP_VIDEO_FILE_PATH + f"\\{video_name}\\{str(frame_data.frame_number)}.png"  ##x
+            
+            real_video_path_plus_image = path + f"\\{str(frame_data.frame_number)}.png"
+            os.makedirs(TEMP_VIDEO_FILE_PATH +f"\\{video_name}", exist_ok=True)  ##x
+            cv2.imwrite(fake_image_path, cv2.resize(frame_data.frame, (VIDEO_THUMBNAIL_SIZE, VIDEO_THUMBNAIL_SIZE)))  ##x
+            image_data.orgImage = real_video_path_plus_image  ##x
+            self.img_db.addImage(image_data, commit_flag=commit)
 
     def file_add_folder_action(self):
-
         options = QFileDialog.Options()
-        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "", options=options)
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "Select Folder", "", options=options
+        )
         if folder_path:
-            self.selected_folder_path= folder_path
+            self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.thread_manager.start_thread(function=self.index_folder,args=(folder_path,self.img_db))
- 
- 
+            self.thread_manager.start_thread(
+                function=self.index_folder, args=(folder_path, self.img_db)
+            )
 
-     
-    def index_folder(self,path,img_db):
-            xD=time.time()
-            img_db.open_connection()
-            
-            with mp.Manager() as manager:
-                for batch in search(path):
-                    for img_path in batch:
-                        queue=manager.Queue() 
-                        if '.mp4' not in img_path:
-                            # print(f"File path IMAGE:{img_path}")
-                            image=cv2.imread(img_path)
-                            image_data = self.image_analyzation.getImageData(image, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
-                            image_data.orgImage = img_path
-                            img_db.addImage(image_data,commit_flag=False)
-                        else :
-                            # print(f"File path VIDEO:{img_path}")
-                            modelsum=0
-                            summ_video_parallel(img_path,queue,self.num_of_processes,self.pool)
-                            i=0
-                            os.makedirs("C:\\kf3", exist_ok=True) ##x
-                            while i != self.num_of_processes:
-                                frame_data=queue.get()
-                                if frame_data is None:
-                                    i+=1
-                                else:
-                                    video_name = os.path.basename(img_path)##x
-                                    image_data = self.image_analyzation.getImageData(frame_data.frame, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
-                                    fake_image_path = f"C:\\kf3\\{video_name}\\{str(frame_data.frame_number)}.png"##x
-                                    real_video_path_plus_image = img_path + f"\\{str(frame_data.frame_number)}.png"
-                                    os.makedirs(f"C:\\kf3\\{video_name}", exist_ok=True)##x
-                                    cv2.imwrite(fake_image_path, frame_data.frame)##x
-                                    
-                                    image_data.orgImage=real_video_path_plus_image##x
-                                    
-                                    img_db.addImage(image_data,commit_flag=False)
-            img_db.commit_changes()
-            img_db.close_connection()
-            print(f"Total time:{time.time()-xD}")
-            self.setCursor(Qt.ArrowCursor)
- 
+    def index_folder(self, path, img_db):
+        xD = time.time()
+        img_db.open_connection()
+
+        with mp.Manager() as manager:
+            for batch in search(path):
+                for img_path in batch:
+                    queue = manager.Queue()
+                    ext = pathlib.Path(img_path).suffix
+                    if  ext not in SUPPORTED_VIDEO_EXTENSIONS:
+                        self.file_add_image_db(img_path)
+                    else:
+                        self.file_add_video_db(img_path, queue=queue, commit=False)
+        img_db.commit_changes()
+        img_db.close_connection()
+        print(f"Total time:{time.time()-xD}")
+        self.setCursor(Qt.ArrowCursor)
+
     def search_keyword_action(self):
         self.search_image.hide()
         text = self.search_box.text()
@@ -197,9 +224,9 @@ class App(QMainWindow):
         self.search_image.showImage(
             imagePath=search_params.imagePath, img_data=img_data
         )
+        self.file_add_db(search_params.imagePath)
 
         self.img_db.open_connection()
-        print(search_params.selectedIndex)
         imgs = self.img_db.search_by_image(
             [x.className for x in img_data.classes]
             if search_params.selectedIndex is None
@@ -212,11 +239,6 @@ class App(QMainWindow):
         image_list = DisplayList()
 
         for img in imgs:
-            if (
-                img.orgImage
-                == "C:\\Users\\best_intern\\Downloads\\val2\\000000104424.jpg"
-            ):
-                print("HERE")
             conf = self.image_analyzation.compareImages(
                 imgData1=img_data,
                 imgData2=img,
@@ -227,7 +249,7 @@ class App(QMainWindow):
                 confidenceCalculation=search_params.magnitudeCalculation,
                 magnitudeCalculation=search_params.magnitudeCalculation,
                 minObjConf=search_params.minObjConf,
-                minObjWeight=search_params.minObjWeight,
+                minObjWeight=search_params.minObjWeightresi,
                 selectedIndex=search_params.selectedIndex,
             )
             image_list.append(DisplayItem(img.orgImage, conf, img))
@@ -235,7 +257,9 @@ class App(QMainWindow):
         av = image_list.average()
         image_list.filter_sort(av)
 
-        self.image_grid.add_images_mt(list(map(lambda x: x.image_data, image_list.items)))
+        self.image_grid.add_images_mt(
+            list(map(lambda x: x.image_data, image_list.items))
+        )
 
         self.setCursor(Qt.ArrowCursor)
 

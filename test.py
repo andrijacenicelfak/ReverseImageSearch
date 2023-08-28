@@ -1,3 +1,4 @@
+from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoderM
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from FileSystem.FileExplorerFile import FileExplorer
 import time
@@ -5,11 +6,11 @@ import numpy as np
 from GUI.GUIFunctions import drawClasses, resizeImage
 
 def objectComparisonTest():
-    fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
-    # fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Desktop\\New folder (2)")
+    # fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
+    fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Documents\\dev\\ImageClassification\\YOLOv8\\imgs")
     paths = fe.search()
 
-    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
+    ai = ImageAnalyzation("yolov8l.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, aedType=AutoEncoderDecoderM, coderDecoderModel="1M-103")
     data: list[ImageData] = []
     for p in paths:
         data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True))
@@ -21,7 +22,7 @@ def objectComparisonTest():
             for md in data:
                 for mcdata in md.classes:
                     img2 = md.orgImage[mcdata.boundingBox.y1 : mcdata.boundingBox.y2, mcdata.boundingBox.x1 : mcdata.boundingBox.x2]
-                    dist = ai.compareImageClassificationData(icd1=cdata, icd2=mcdata, treshhold=0)
+                    dist = ai.compareImageClassificationData(icd1=cdata, icd2=mcdata, treshhold=0, scaleDown=True, classNameComparison=True, magnitudeCalculation=True)
                     print(f"{dist} : {cdata.className} : {mcdata.className}")
                     imgs = np.concatenate([cv2.resize(img, (512, 512)), cv2.resize(img2, (512, 512))], axis=1)
                     cv2.rectangle(imgs, (512, 512), (715, 490), (0,0,0), -1)
@@ -43,7 +44,7 @@ def imageComparisonTest():
     fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
     paths = fe.search()
  
-    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
+    ai = ImageAnalyzation("yolov8l.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, aedType=AutoEncoderDecoderM, coderDecoderModel="1M-103")
     data: list[ImageData] = []
     for p in paths:
         data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True, classesConfidence=0.65))
@@ -68,7 +69,7 @@ def rectDrawTest():
     fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
     paths = fe.search()
 
-    ai = ImageAnalyzation("yolov8l.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
+    ai = ImageAnalyzation("yolov8l.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, aedType=AutoEncoderDecoderM, coderDecoderModel="1M-103")
     data: list[ImageData] = []
     for p in paths:
         data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True))

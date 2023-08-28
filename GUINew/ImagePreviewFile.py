@@ -38,10 +38,10 @@ class ImagePreview(QWidget):
 
         self.image = QLabel(parent=self)
         self.image.setMaximumSize(width, height)
-        if image_path is not None:
-            self.px = QPixmap(image_path).scaled(width, height)
-        elif px_image is not None:
+        if px_image is not None:
             self.px = px_image
+        elif image_path is not None:
+            self.px = QPixmap(image_path).scaled(width, height)
         self.image.setPixmap(self.px)
         self.content_layout.addWidget(self.image, 0, 0)
         self.content.setLayout(self.content_layout)

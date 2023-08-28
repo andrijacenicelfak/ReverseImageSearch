@@ -130,6 +130,7 @@ class ImageAddWorker(QThread):
         for i, d in enumerate(self.data):
             classes = reduce((lambda a, b: a + " " + b.className), d.classes, "")
             
+            print(d.orgImage)
             px = QPixmap(d.orgImage)
             # if px.isNull():
             #     print("NIJE UCITANO : " + d.orgImage)
