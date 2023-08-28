@@ -12,8 +12,13 @@ from GUI.GUIFunctions import *
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    ai = ImageAnalyzation("yolov8s.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, coderDecoderModel="1A-27")
-    db=ImageDB()
+    ai = ImageAnalyzation(
+        "yolov8s.pt",
+        device="cuda",
+        analyzationType=AnalyzationType.CoderDecoder,
+        coderDecoderModel="1A-27",
+    )
+    db = ImageDB()
     window = App(image_analyzation=ai, img_db=db)
     window.show()
     sys.exit(app.exec_())

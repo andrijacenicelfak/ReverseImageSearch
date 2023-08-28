@@ -12,7 +12,13 @@ from PyQt5.QtGui import QDoubleValidator
 
 
 class SearchImageDialog(QDialog):
-    def __init__(self, image_analyzation : ImageAnalyzation, image_width = 400, image_height = 400 , options_only = False):
+    def __init__(
+        self,
+        image_analyzation: ImageAnalyzation,
+        image_width=400,
+        image_height=400,
+        options_only=False,
+    ):
         super().__init__()
         self.setWindowTitle("Select image" if not options_only else "Settings")
         self.image_analyzation = image_analyzation
@@ -24,14 +30,16 @@ class SearchImageDialog(QDialog):
         self.main_layout = QHBoxLayout()
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.setLayout(self.main_layout)
-        
+
         # Image preview -----------------------------------------------------
         if not options_only:
             self.image_preview_layout = QVBoxLayout()
             self.image_preview = QWidget()
-            
+
             self.image_label = QLabel(parent=self.image_preview)
-            self.image = QPixmap(self.search_params.imagePath).scaled(self.image_width, self.image_height)
+            self.image = QPixmap(self.search_params.imagePath).scaled(
+                self.image_width, self.image_height
+            )
             self.image_label.setPixmap(self.image)
             self.image_label.setMaximumSize(self.image_width, self.image_height)
             self.image_label.setMinimumSize(self.image_width, self.image_height)
@@ -69,12 +77,16 @@ class SearchImageDialog(QDialog):
         self.max_weight_reduciton.stateChanged.connect(self.prams_change)
         self.settings_layout.addWidget(self.max_weight_reduciton)
 
-        self.contain_same_objects = QCheckBox("Must contain same objects", self.settings)
+        self.contain_same_objects = QCheckBox(
+            "Must contain same objects", self.settings
+        )
         self.contain_same_objects.setChecked(self.search_params.containSameObjects)
         self.contain_same_objects.stateChanged.connect(self.prams_change)
         self.settings_layout.addWidget(self.contain_same_objects)
 
-        self.conf_calc = QCheckBox("Use object confidence in calculation", self.settings)
+        self.conf_calc = QCheckBox(
+            "Use object confidence in calculation", self.settings
+        )
         self.conf_calc.setChecked(self.search_params.confidenceCalculation)
         self.conf_calc.stateChanged.connect(self.prams_change)
         self.settings_layout.addWidget(self.conf_calc)
@@ -93,7 +105,9 @@ class SearchImageDialog(QDialog):
         self.min_conf_label = QLabel("Minimum confidence for objects")
         self.min_conf_layout.addWidget(self.min_conf_label)
 
-        self.min_conf = QLineEdit(str(self.search_params.minObjConf), parent=self.settings)
+        self.min_conf = QLineEdit(
+            str(self.search_params.minObjConf), parent=self.settings
+        )
         self.min_conf.setValidator(self.validator)
         self.min_conf_layout.addWidget(self.min_conf)
 
@@ -106,10 +120,12 @@ class SearchImageDialog(QDialog):
         self.min_weight_label = QLabel("Minimum weight for objects")
         self.min_weight_layout.addWidget(self.min_weight_label)
 
-        self.min_weight = QLineEdit(str(self.search_params.minObjWeight), parent=self.settings)
+        self.min_weight = QLineEdit(
+            str(self.search_params.minObjWeight), parent=self.settings
+        )
         self.min_weight.setValidator(self.validator)
         self.min_weight_layout.addWidget(self.min_weight)
-        
+
         self.min_weight_widget.setLayout(self.min_weight_layout)
         self.settings_layout.addWidget(self.min_weight_widget)
 
@@ -133,42 +149,65 @@ class SearchImageDialog(QDialog):
             json.dump(self.search_params.get_dict(), fp=f)
 
         if self.has_image:
-            self.accept()   
+            self.accept()
         else:
-            self.reject()    
+            self.reject()
         return
 
     def search_image(self):
-        options=QFileDialog.Options()
-        photo_path,_=QFileDialog.getOpenFileName(self, "Select Photo", "","Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png *.mp4)", options=options)
+        options = QFileDialog.Options()
+        photo_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Photo",
+            "",
+            "Images (*.bmp *.pbm *.pgm *.gif *.sr *.ras *.jpeg *.jpg *.jpe *.jp2 *.tiff *.tif *.png *.mp4)",
+            options=options,
+        )
 
         if not photo_path:
             return
-        
+
         self.search_params.imagePath = photo_path
         self.org_image = cv2.imread(photo_path)
-        self.search_params.data = self.image_analyzation.getImageData(self.org_image, classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = False, classesConfidence=0.35)
+        self.search_params.data = self.image_analyzation.getImageData(
+            self.org_image,
+            classesData=True,
+            imageFeatures=True,
+            objectsFeatures=True,
+            returnOriginalImage=False,
+            classesConfidence=0.35,
+        )
         self.org_image = cv2.cvtColor(self.org_image, cv2.COLOR_BGR2RGB)
-        self.search_params.data.orgImage = self.org_image # The reson returnOriginalImage is False is because the color correction above 
+        self.search_params.data.orgImage = (
+            self.org_image
+        )  # The reson returnOriginalImage is False is because the color correction above
 
         while self.object_selection.count() > 1:
             self.object_selection.removeItem(1)
 
         for i, c in enumerate(self.search_params.data.classes):
-            self.object_selection.addItem(c.className , i)
+            self.object_selection.addItem(c.className, i)
 
         self.update_image()
 
         self.has_image = True
-    
+
     def update_image(self):
-        self.bb_image = drawClasses(self.search_params.data, self.org_image.copy(), index=self.search_params.selectedIndex)
+        self.bb_image = drawClasses(
+            self.search_params.data,
+            self.org_image.copy(),
+            index=self.search_params.selectedIndex,
+        )
         self.bb_image_px = numpy_to_pixmap(self.bb_image)
         self.image = self.bb_image_px.scaled(self.image_width, self.image_height)
         self.image_label.setPixmap(self.image)
 
     def selection_change(self):
-        self.search_params.selectedIndex = None if self.object_selection.currentData() == -1 else self.object_selection.currentData()
+        self.search_params.selectedIndex = (
+            None
+            if self.object_selection.currentData() == -1
+            else self.object_selection.currentData()
+        )
         print(self.search_params.selectedIndex)
         disable_controls = self.search_params.selectedIndex is not None
         self.compare_objects.setDisabled(disable_controls)
@@ -179,7 +218,7 @@ class SearchImageDialog(QDialog):
         # self.mag_calc.setDisabled(disable_controls)
         self.update_image()
         return
-    
+
     def prams_change(self, checkbox):
         self.search_params.compareObjects = self.compare_objects.isChecked()
         self.search_params.compareWholeImages = self.compare_whole_images.isChecked()
@@ -188,5 +227,3 @@ class SearchImageDialog(QDialog):
         self.search_params.confidenceCalculation = self.conf_calc.isChecked()
         self.search_params.magnitudeCalculation = self.mag_calc.isChecked()
         return
-
-        
