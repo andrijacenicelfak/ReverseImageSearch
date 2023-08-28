@@ -1,7 +1,7 @@
 from functools import reduce
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, qInstallMessageHandler, QUrl, QRunnable, QThreadPool, QObject, QThread
+from PyQt5.QtCore import Qt, QThread
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
 from GUINew.DisplayFile import *
@@ -14,36 +14,10 @@ import multiprocessing as mp
 from FileSystem.FileExplorerFile import search
 
 from Video.histoDThresh import  summ_video_parallel,FrameData
-
-
-
-
-
-class MyThread(QRunnable):
-    
-    def __init__(self,function,args):
-        super().__init__()
-        self.function=function
-        self.args=args
-        
-    def run(self):
-        self.function(*self.args)
-
-class MyThreadManager(QObject):
- 
-    def __init__(self):
-        super().__init__()
-        self.thread_pool=QThreadPool()
-        
-    def start_thread(self,function,args):
-        handle=MyThread(function=function,args=args)
-        self.thread_pool.start(handle)
-
-
+from GUINew.ThreadsFile import *
 
 def handle(type, context, message):
     pass
-
 
 class App(QMainWindow):
     def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
