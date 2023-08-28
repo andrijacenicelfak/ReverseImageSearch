@@ -119,6 +119,53 @@ class AutoEncoderDecoder(nn.Module):
         x = self.encode(x)
         x = self.decode(x)
         return x
+    
+class AutoEncoderDecoderS(nn.Module):
+    def __init__(self):
+        super(AutoEncoderDecoderS, self).__init__()
+
+        self.encoderl1 = EncoderLayer(in_channels=3, out_channels=8, downsample=True)      #3 x 128x128 -> 8 x 64x64
+        self.encoderl2 = EncoderLayer(in_channels=8, out_channels=16, downsample=True)     # 8 x 64x64 -> 16 x 32x32
+        self.encoderl3 = EncoderLayer(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 16x16
+        self.encoderl4 = EncoderLayer(in_channels=32, out_channels=64, downsample=True)    # 32 x 16x16 -> 64 x 8x8
+        self.encoderl5 = EncoderLayer(in_channels=64, out_channels=96, downsample=True)   # 64 x 8x8 -> 96 x 4x4
+        self.encoderl6 = EncoderLayer(in_channels=96, out_channels=128, downsample=True)   # 96 x 4x4 -> 128 x 2x2
+        self.encoderl7 = EncoderLayer(in_channels=128, out_channels=256, downsample=True)   # 128 x 2x2 -> 256 x 1x11
+
+        self.vectorLenght = 256
+
+        self.decoderl1 = DecoderLayer(in_channels=256, out_channels=128, upsample= True)
+        self.decoderl2 = DecoderLayer(in_channels=128, out_channels=96, upsample= True)
+        self.decoderl3 = DecoderLayer(in_channels=96, out_channels=64, upsample= True)
+        self.decoderl4 = DecoderLayer(in_channels=64, out_channels=32, upsample= True)
+        self.decoderl5 = DecoderLayer(in_channels=32, out_channels=16, upsample= True)
+        self.decoderl6 = DecoderLayer(in_channels=16, out_channels=8, upsample= True)
+        self.decoderl7 = DecoderLayer(in_channels=8, out_channels=3, upsample= True)
+    
+    def encode(self, x):
+        x = self.encoderl1(x)
+        x = self.encoderl2(x)
+        x = self.encoderl3(x)
+        x = self.encoderl4(x)
+        x = self.encoderl5(x)
+        x = self.encoderl6(x)
+        x = self.encoderl7(x)
+        return x
+
+    def decode(self, x):
+        x = self.decoderl1(x)
+        x = self.decoderl2(x)
+        x = self.decoderl3(x)
+        x = self.decoderl4(x)
+        x = self.decoderl5(x)
+        x = self.decoderl6(x)
+        x = self.decoderl7(x)
+        return x
+
+    def forward(self, x):
+        x = self.encode(x)
+        x = self.decode(x)
+        return x
 
 class AutoEncoderDecoderM(nn.Module):
     def __init__(self):
@@ -194,7 +241,8 @@ def testModel(model, dataLoader, criterion, numTests = 30, shape=(3, 128, 128)):
     cv2.destroyAllWindows()
     return
 
-def testModelMultiple(models, dataLoader, numTests = 30, shape=(3, 128, 128)):
+def testModelMultiple(models, dataLoader, numTests = 30, shape=(3, 128, 128), save = False, saveName = ""):
+    index = 1
     for i, (input, _) in enumerate(dataLoader):
         input = input.cuda(non_blocking= True)
         outputs = []
@@ -209,22 +257,24 @@ def testModelMultiple(models, dataLoader, numTests = 30, shape=(3, 128, 128)):
         hor = cv2.cvtColor(hor, cv2.COLOR_BGR2RGB)
         cv2.imshow("images", hor)
 
-        while cv2.waitKey(0) != ord(' '):
-            time.sleep(0.1)
-
+        if cv2.waitKey(0) == ord(' '):
+            cv2.imwrite(f".\\imgs\\{saveName}{index}.png", hor*255)
+            index += 1
+            
         if i > numTests:
             break
     cv2.destroyAllWindows()
     return
 
 def trainModel(model, dataloader, dataLoaderVal, criterion, scheduler,optimizer, epochs, save = True, savePath = ".\\models\\", name = "model", startEpoch = 0):
-    print("[epoch : percent untill epoch finish : running loss : loss difference]")
+    print("[epoch : epoch p finished : running loss : loss difference : time]")
     model.cuda()
     model.train()
     runningLoss = 0
     lastLoss = 0
     for e in range(startEpoch, epochs):
         etime = time.time()
+        rtime = time.time()
         for i, (input, _) in enumerate(dataloader):
             input = input.cuda(non_blocking = True)
             
@@ -242,7 +292,13 @@ def trainModel(model, dataloader, dataLoaderVal, criterion, scheduler,optimizer,
 
             if i % 100 == 0:
                 runningLoss /=  100
-                print("[%2d : %3.2f : %1.9f : %s%1.9f]" % (e,  ((i+1)*dataloader.batch_size / (len(dataloader) * dataloader.batch_size) * 100), (runningLoss), ('+' if runningLoss > lastLoss else '-'), (abs(runningLoss - lastLoss))))
+                print("[%2d : %3.2f : %1.9f : %s%1.9f : %5.1f ]" % (
+                        e,
+                        ((i+1)*dataloader.batch_size / (len(dataloader) * dataloader.batch_size) * 100),
+                        (runningLoss), ('+' if runningLoss > lastLoss else '-'),
+                        (abs(runningLoss - lastLoss)),
+                        (time.time()-rtime)
+                    ))
                 lastLoss = runningLoss
                 runningLoss = 0
         if save:

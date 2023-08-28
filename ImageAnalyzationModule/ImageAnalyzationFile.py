@@ -184,6 +184,7 @@ class ImageAnalyzation:
             self.t = torchvision.transforms.Compose(
                 [
                     torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize((0.5), (0.5))
                 ]
             )
             self.coderDecoderModel = aedType()
@@ -546,9 +547,7 @@ class ImageAnalyzation:
         for i in range(len(imgData1.classes)):
             j = fts[i][0]
             if j != -1 and stf[j][0] == i:
-                sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[
-                    j
-                ].weight
+                sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
                 numOfMatches += 1
 
         objectComparison = (
@@ -693,9 +692,9 @@ class ImageAnalyzation:
         treshhold=0.1,
         confidenceCalculation=False,
         magnitudeCalculation=False,
-        classNameComparison= True,
-        scaleDown = True,
-        scale = (0.9, 10)
+        classNameComparison=True,
+        scaleDown=True,
+        scale=(0.9, 10),
     ):
         if icd1.features is None or icd2.features is None:
             raise Exception("Feature vector is None!")
@@ -703,29 +702,26 @@ class ImageAnalyzation:
             raise Exception("No weights for calculating similarity!")
         if classNameComparison and icd1.className != icd2.className:
             return 0
-        # dist = (1 - cosine(icd1.features, icd2.features))
-        dist = self.vectorDistance(
-            icd1.features, icd2.features, magnitudeCalculation=magnitudeCalculation
-        )
-        # The values seem to be between 0.6 - 1.0
-        # fdif = list(filter(lambda x: x > 1e-4, icd2.features - icd1.features))
-        # s = str(reduce(lambda a,b: a + f"{b} ", fdif, ""))
-        # print(s)
-        # print(len(fdif))
+
+        m1 = np.linalg.norm(icd1.features)
+        m2 = np.linalg.norm(icd2.features)
+
+        v1 = icd1.features  # / m1
+        v2 = icd2.features  # / m2
+
+        dist = 1 - cosine(v1, v2)
+
+        if magnitudeCalculation:  # Better results
+            dist *= min(m1, m2) / max(m1, m2)
+
+        # The values seem to be between example 0.6 - 1.0
         if scaleDown:
+            # Values 0.0 - 1.0
             dist = (dist - scale[0]) * scale[1]
-        # Values 0.0 - 1.0
+
         if confidenceCalculation:  # Worse results
             dist = dist * icd1.conf * icd2.conf
         return dist if dist >= treshhold else 0
-
-    def vectorDistance(self, vec1, vec2, magnitudeCalculation=False):
-        res = 1 - cosine(vec1, vec2)
-        if magnitudeCalculation:
-            l1 = np.linalg.norm(vec1)
-            l2 = np.linalg.norm(vec2)
-            res *= min(l1, l2) / max(l1, l2)
-        return res
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(

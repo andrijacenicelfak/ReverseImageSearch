@@ -1,4 +1,4 @@
-from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoderM
+from ImageAnalyzationModule.ConvolutionalModels import *
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from FileSystem.FileExplorerFile import FileExplorer
 import time
@@ -8,9 +8,10 @@ from GUI.GUIFunctions import drawClasses, resizeImage
 def objectComparisonTest():
     # fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Downloads\\val2")
     fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Documents\\dev\\ImageClassification\\YOLOv8\\imgs")
+    # fe = FileExplorer(startDirectory="C:\\Users\\best_intern\\Desktop\\New folder (2)")
     paths = fe.search()
 
-    ai = ImageAnalyzation("yolov8l.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, aedType=AutoEncoderDecoderM, coderDecoderModel="1M-103")
+    ai = ImageAnalyzation("yolov8l.pt", device="cuda", analyzationType=AnalyzationType.CoderDecoder, aedType=AutoEncoderDecoderS, coderDecoderModel="1S-11")
     data: list[ImageData] = []
     for p in paths:
         data.append(ai.getImageData(cv2.imread(p), classesData = True, imageFeatures = True, objectsFeatures = True, returnOriginalImage = True))
@@ -22,7 +23,7 @@ def objectComparisonTest():
             for md in data:
                 for mcdata in md.classes:
                     img2 = md.orgImage[mcdata.boundingBox.y1 : mcdata.boundingBox.y2, mcdata.boundingBox.x1 : mcdata.boundingBox.x2]
-                    dist = ai.compareImageClassificationData(icd1=cdata, icd2=mcdata, treshhold=0, scaleDown=True, classNameComparison=True, magnitudeCalculation=True)
+                    dist = ai.compareImageClassificationData(icd1=cdata, icd2=mcdata, treshhold=0, scaleDown=True, scale=(0.9, 10), magnitudeCalculation=False, classNameComparison=True)
                     print(f"{dist} : {cdata.className} : {mcdata.className}")
                     imgs = np.concatenate([cv2.resize(img, (512, 512)), cv2.resize(img2, (512, 512))], axis=1)
                     cv2.rectangle(imgs, (512, 512), (715, 490), (0,0,0), -1)
