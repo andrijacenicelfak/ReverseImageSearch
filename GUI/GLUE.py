@@ -258,4 +258,4 @@ class GUI(QMainWindow):
         self.video_player.resize(600, 400)
         self.video_player.mediaPlayer.setPosition(position)
         self.video_player.show() 
-        # time.sleep(100)     
+        # time.sleep(100)    
