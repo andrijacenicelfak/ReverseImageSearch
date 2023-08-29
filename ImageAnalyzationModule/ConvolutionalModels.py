@@ -167,6 +167,53 @@ class AutoEncoderDecoderS(nn.Module):
         x = self.decode(x)
         return x
 
+class AutoEncoderDecoderXS(nn.Module):
+    def __init__(self):
+        super(AutoEncoderDecoderXS, self).__init__()
+
+        self.encoderl1 = EncoderLayer(in_channels=3, out_channels=8, downsample=True)      #3 x 128x128 -> 8 x 64x64
+        self.encoderl2 = EncoderLayer(in_channels=8, out_channels=16, downsample=True)     # 8 x 64x64 -> 16 x 32x32
+        self.encoderl3 = EncoderLayer(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 16x16
+        self.encoderl4 = EncoderLayer(in_channels=32, out_channels=64, downsample=True)    # 32 x 16x16 -> 64 x 8x8
+        self.encoderl5 = EncoderLayer(in_channels=64, out_channels=96, downsample=True)   # 64 x 8x8 -> 96 x 4x4
+        self.encoderl6 = EncoderLayer(in_channels=96, out_channels=128, downsample=True)   # 96 x 4x4 -> 128 x 2x2
+        self.encoderl7 = EncoderLayer(in_channels=128, out_channels=128, downsample=True)   # 128 x 2x2 -> 128 x 1x1
+
+        self.vectorLenght = 128
+
+        self.decoderl1 = DecoderLayer(in_channels=128, out_channels=128, upsample= True)
+        self.decoderl2 = DecoderLayer(in_channels=128, out_channels=96, upsample= True)
+        self.decoderl3 = DecoderLayer(in_channels=96, out_channels=64, upsample= True)
+        self.decoderl4 = DecoderLayer(in_channels=64, out_channels=32, upsample= True)
+        self.decoderl5 = DecoderLayer(in_channels=32, out_channels=16, upsample= True)
+        self.decoderl6 = DecoderLayer(in_channels=16, out_channels=8, upsample= True)
+        self.decoderl7 = DecoderLayer(in_channels=8, out_channels=3, upsample= True)
+    
+    def encode(self, x):
+        x = self.encoderl1(x)
+        x = self.encoderl2(x)
+        x = self.encoderl3(x)
+        x = self.encoderl4(x)
+        x = self.encoderl5(x)
+        x = self.encoderl6(x)
+        x = self.encoderl7(x)
+        return x
+
+    def decode(self, x):
+        x = self.decoderl1(x)
+        x = self.decoderl2(x)
+        x = self.decoderl3(x)
+        x = self.decoderl4(x)
+        x = self.decoderl5(x)
+        x = self.decoderl6(x)
+        x = self.decoderl7(x)
+        return x
+
+    def forward(self, x):
+        x = self.encode(x)
+        x = self.decode(x)
+        return x
+
 class AutoEncoderDecoderM(nn.Module):
     def __init__(self):
         super(AutoEncoderDecoderM, self).__init__()
@@ -240,15 +287,40 @@ def testModel(model, dataLoader, criterion, numTests = 30, shape=(3, 128, 128)):
             break
     cv2.destroyAllWindows()
     return
+def testModelpPrintEncoded(model, dataLoader, criterion, numTests = 30, shape=(3, 128, 128)):
+    all_encoded = []
+    for i, (input, _) in enumerate(dataLoader):
+        input = input.cuda(non_blocking= True)
+        encoded = model.encode(input)
+        output = model.decode(encoded)
+        loss = criterion(output, input)
+        all_encoded.append(encoded.cpu().detach().numpy().flatten())
+        print(f"Current loss : {loss.item()}")
+        for e in zip(*all_encoded):
+            print(e)
+        input = input.view(shape).cpu().detach().numpy().transpose(1,2,0)
+        output = output.view(shape).cpu().detach().numpy().transpose(1,2,0)
+
+        hor = np.concatenate((input, output), axis=1)
+        hor = cv2.cvtColor(hor, cv2.COLOR_BGR2RGB)
+        cv2.imshow("images", hor)
+
+        while cv2.waitKey(0) != ord(' '):
+            time.sleep(0.1)
+
+        if i > numTests:
+            break
+    cv2.destroyAllWindows()
+    return
 
 def testModelMultiple(models, dataLoader, numTests = 30, shape=(3, 128, 128), save = False, saveName = ""):
     index = 1
+
     for i, (input, _) in enumerate(dataLoader):
         input = input.cuda(non_blocking= True)
         outputs = []
         for model in models:
             outputs.append(model(input))
-
 
         input = input.view(shape).cpu().detach().numpy().transpose(1,2,0)
         outputs = [output.view(shape).cpu().detach().numpy().transpose(1,2,0) for output in outputs]
@@ -257,11 +329,41 @@ def testModelMultiple(models, dataLoader, numTests = 30, shape=(3, 128, 128), sa
         hor = cv2.cvtColor(hor, cv2.COLOR_BGR2RGB)
         cv2.imshow("images", hor)
 
-        if cv2.waitKey(0) == ord(' '):
+        key = cv2.waitKey(0)
+        if  key == ord(' ') and save:
             cv2.imwrite(f".\\imgs\\{saveName}{index}.png", hor*255)
             index += 1
-            
-        if i > numTests:
+        elif key == 27 or i > numTests:
+            break
+    cv2.destroyAllWindows()
+    return
+
+def testModelMultiplePrintEncoded(models, dataLoader, numTests = 30, shape=(3, 128, 128), save = False, saveName = ""):
+    index = 1
+    for i, (input, _) in enumerate(dataLoader):
+        input = input.cuda(non_blocking= True)
+        outputs = []
+        all_encoded = []
+        for model in models:
+            encoded = model.encode(input)
+            decoded = model.decode(encoded)
+            outputs.append(decoded)
+            all_encoded.append(encoded.cpu().detach().numpy().flatten())
+        for e in zip(*all_encoded):
+            print(e)
+
+        input = input.view(shape).cpu().detach().numpy().transpose(1,2,0)
+        outputs = [output.view(shape).cpu().detach().numpy().transpose(1,2,0) for output in outputs]
+        outputs.insert(0, input)
+        hor = np.concatenate(outputs, axis=1)
+        hor = cv2.cvtColor(hor, cv2.COLOR_BGR2RGB)
+        cv2.imshow("images", hor)
+
+        key = cv2.waitKey(0)
+        if  key == ord(' ') and save:
+            cv2.imwrite(f".\\imgs\\{saveName}{index}.png", hor*255)
+            index += 1
+        elif key == 27 or i > numTests:
             break
     cv2.destroyAllWindows()
     return

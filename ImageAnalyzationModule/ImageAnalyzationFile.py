@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import reduce
+from math import sqrt
 import time
 import cv2
 from ultralytics import YOLO
@@ -703,15 +704,30 @@ class ImageAnalyzation:
         if classNameComparison and icd1.className != icd2.className:
             return 0
 
-        m1 = np.linalg.norm(icd1.features)
-        m2 = np.linalg.norm(icd2.features)
+        m1 = 0
+        m2 = 0
+        dist = 0
+        v1 = []
+        v2 = []
+        for i in range(len(icd1.features)):
+            f1, f2 = icd1.features[i], icd2.features[i]
+            if f1 != f2:
+                v1.append(f1)
+                v2.append(f2)
+                m1 += f1*f1
+                m2 += f2*f2
+                dist += f1 * f2
+        m1 = sqrt(m1)
+        m2 = sqrt(m2)
+        dist = 1 - sqrt(dist) / max(m1 + m2, 1)
+        # dist = 1 - cosine(v1, v2)
 
-        v1 = icd1.features  # / m1
-        v2 = icd2.features  # / m2
+        with open('test.txt', 'w') as f:
+            for f1, f2 in (zip(v1, v2)):
+                f.write(f"{f1}\t{f2}\n")
 
-        dist = 1 - cosine(v1, v2)
 
-        if magnitudeCalculation:  # Better results
+        if magnitudeCalculation and (m1 != 0 and m2 !=0):  # Better results
             dist *= min(m1, m2) / max(m1, m2)
 
         # The values seem to be between example 0.6 - 1.0
@@ -721,7 +737,7 @@ class ImageAnalyzation:
 
         if confidenceCalculation:  # Worse results
             dist = dist * icd1.conf * icd2.conf
-        return dist if dist >= treshhold else 0
+        return min(dist, 1.0) if dist >= treshhold else 0
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(
