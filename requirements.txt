@@ -211,4 +211,4 @@ yaml=0.2.5=h8ffe710_2
 zeromq=4.3.4=h0e60522_1
 zipp=3.16.2=pyhd8ed1ab_0
 zlib=1.2.13=h8cc25b3_0
-zstd=1.5.5=hd43e919_0
+zstd=1.5.5=hd43e919_u

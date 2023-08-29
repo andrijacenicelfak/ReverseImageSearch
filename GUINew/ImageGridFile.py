@@ -96,15 +96,21 @@ class ImageGrid(QScrollArea):
         )
 
     def add_to_grid(self, data : [tuple]):
-        for image, desc in data:
+        for image, desc, path in data:
             i = self.layout_gird.count()
-            ip = ImagePreview(desc, None, image)
+            ip = ImagePreview(desc, path, image)
             self.layout_gird.addWidget(
                 ip, i // self.max_collum_count, i % self.max_collum_count
             )
 
-    def done_adding(self):
-        print("Done")
+    def done_adding(self, video_dict):
+
+        while self.layout_gird.count():
+            item = self.layout_gird.takeAt(0)
+            widget = item.widget()
+            if widget:
+                norm_path, frame_num  = format_if_video_path(widget.image_path)
+
 
     def add_images_mt(self, data: list[ImageData]):
         self.removeAllImages()
@@ -115,8 +121,9 @@ class ImageGrid(QScrollArea):
         self.image_adder.start()
 
 
+
 class ImageAddWorker(QThread):
-    done = pyqtSignal()
+    done = pyqtSignal(dict)
     progress = pyqtSignal(int)
     add = pyqtSignal(list)
 
@@ -125,18 +132,31 @@ class ImageAddWorker(QThread):
         self.data = data
 
     def run(self):
+        video_dict = dict()
         data_len = len(self.data)
         data_emit = []
         for i, d in enumerate(self.data):
             classes = reduce((lambda a, b: a + " " + b.className), d.classes, "")
             
-            print(d.orgImage)
-            px = QPixmap(d.orgImage)
+            
+            #<<<<<####################################################################
+            #TODO DODATI DICT KEY=PATH VALUE=LIST
+            px = QPixmap(format_image_path(d.orgImage))
+            
+            norm_path, frame_num  = format_if_video_path(d.orgImage)
+            
+            if norm_path in video_dict:
+                video_dict[norm_path].append(frame_num)        
+                continue
+            else:
+                video_dict[norm_path] = [frame_num]
+            
+
             # if px.isNull():
             #     print("NIJE UCITANO : " + d.orgImage)
             #     continue
             px = px.scaled(IMAGE_SIZE, IMAGE_SIZE)
-            data_emit.append((px, f"Classes: {classes}"))
+            data_emit.append((px, f"Classes: {classes}", d.orgImage))
             if i % 5 == 0:
                 self.add.emit(data_emit)
                 data_emit = []
@@ -144,4 +164,4 @@ class ImageAddWorker(QThread):
                 self.progress.emit(int(100 * i / data_len))
         self.add.emit(data_emit)
         self.progress.emit(100)
-        self.done.emit()
+        self.done.emit(video_dict)#prosledi ovde dict
