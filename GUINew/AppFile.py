@@ -224,7 +224,8 @@ class App(QMainWindow):
         self.search_image.showImage(
             imagePath=search_params.imagePath, img_data=img_data
         )
-        self.file_add_db(search_params.imagePath)
+        # TODO : Add logic to check if the file is in the database, and if it is not it adds it to the database
+        # self.file_add_image_db(search_params.imagePath)
 
         self.img_db.open_connection()
         imgs = self.img_db.search_by_image(
@@ -249,7 +250,7 @@ class App(QMainWindow):
                 confidenceCalculation=search_params.magnitudeCalculation,
                 magnitudeCalculation=search_params.magnitudeCalculation,
                 minObjConf=search_params.minObjConf,
-                minObjWeight=search_params.minObjWeightresi,
+                minObjWeight=search_params.minObjWeight,
                 selectedIndex=search_params.selectedIndex,
             )
             image_list.append(DisplayItem(img.orgImage, conf, img))
