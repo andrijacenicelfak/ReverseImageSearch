@@ -2,9 +2,10 @@ from functools import reduce
 import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QThread
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
+from GUINew.VideoPlayerFile import VideoPlayer
 from GUINew.DisplayFile import *
 from GUINew.ImageGridFile import ImageGrid
 from GUINew.SearchImageDialogFile import SearchImageDialog
@@ -18,16 +19,16 @@ from Video.histoDThresh import summ_video_parallel
 from GUINew.ThreadsFile import *
 import os
 
-TEMP_VIDEO_FILE_PATH = os.getenv('LOCALAPPDATA') + "\\Reverse"
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
 def handle(type, context, message):
     pass
 
 class App(QMainWindow):
+
     def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
         super().__init__()
-        print(TEMP_VIDEO_FILE_PATH)
+        self.video_player = None
         #
         self.thread_manager = MyThreadManager()
         self.num_of_processes = mp.cpu_count()
@@ -96,6 +97,7 @@ class App(QMainWindow):
         self.search_image = SearchImageView()
         self.main_layout.addWidget(self.search_image)
         self.image_grid = ImageGrid(loading_percent_callback=self.set_loading_percent)
+        self.image_grid.start_video_player.connect(self.start_video_player)
         self.main_layout.addWidget(self.image_grid)
 
         # loader
@@ -277,3 +279,14 @@ class App(QMainWindow):
 
     def file_exit_action(self):
         QApplication.quit()
+    
+    def start_video_player(self, video_path, data):
+        # print(data)
+        if self.video_player :
+            self.video_player.closePlayer()
+            self.video_player.deleteLater()
+        self.video_player = VideoPlayer(fileName=video_path, data=data)
+        self.video_player.setWindowTitle("Player")
+        self.video_player.resize(1024, 960)
+        # self.video_player.mediaPlayer.setPosition(position) TODO : set the first position
+        self.video_player.show() 

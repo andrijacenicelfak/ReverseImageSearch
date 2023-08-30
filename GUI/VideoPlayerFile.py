@@ -91,7 +91,3 @@ class VideoPlayer(QMainWindow):
     def handle_errors(self):
         self.playBtn.setEnabled(False)
         self.label.setText("Error: " + self.mediaPlayer.errorString())
-
-# app = QApplication(sys.argv)
-# window = Window()
-# sys.exit(app.exec_())
