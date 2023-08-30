@@ -2,7 +2,8 @@ from functools import reduce
 import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler
+from PyQt5.QtGui import QIcon
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
 from GUINew.VideoPlayerFile import VideoPlayer
@@ -78,13 +79,16 @@ class App(QMainWindow):
         self.search_layout.setContentsMargins(0, 0, 0, 0)
 
         self.search_box = QLineEdit("", self.menu_bar)
+        self.search_box.returnPressed.connect(self.enter_search_box)
         self.search_layout.addWidget(self.search_box)
 
-        self.search_keyword_button = QPushButton("🔍", self.menu_bar)
+        self.search_keyword_button = QPushButton("", self.menu_bar)
+        self.search_keyword_button.setIcon(QIcon(".\\AppImages\\search.png"))
         self.search_keyword_button.clicked.connect(self.search_keyword_action)
         self.search_layout.addWidget(self.search_keyword_button)
 
-        self.search_image_button = QPushButton("⮹", self.menu_bar)
+        self.search_image_button = QPushButton("", self.menu_bar)
+        self.search_image_button.setIcon(QIcon(".\\AppImages\\image.png"))
         self.search_image_button.clicked.connect(self.search_image_action)
         self.search_layout.addWidget(self.search_image_button)
 
@@ -109,6 +113,10 @@ class App(QMainWindow):
         self.setCentralWidget(self.content)
 
         self.setGeometry(100, 100, 900, 900)
+
+    def enter_search_box(self):
+        print("ENTERRRRR")
+        self.search_keyword_action()
 
     def file_add_action(self):
         options = QFileDialog.Options()
@@ -193,7 +201,7 @@ class App(QMainWindow):
 
     def search_keyword_action(self):
         self.search_image.hide()
-        text = self.search_box.text()
+        text = self.search_box.text().lower()
         text_words = text.split(" ")
         text_words = list(filter(lambda x: x in dbf.model_names, text_words))
         self.img_db.open_connection()

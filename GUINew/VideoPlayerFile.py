@@ -38,7 +38,6 @@ class VideoPlayer(QWidget):
         controlLayout.addWidget(self.playButton)
         controlLayout.addWidget(self.positionSlider)
 
-
         #Adding all the video frames
 
         self.scroll_area = QScrollArea()
@@ -56,7 +55,6 @@ class VideoPlayer(QWidget):
         for ed in enumerate(data):
             d = ed[1]
             i = ed[0]
-            print(f"{i}\t:\t{d[1]}")
             vpi = VideoPlayerItem(d[1], d[0], size=(item_size, item_size))
             vpi.clicked.connect(self.item_click_position_change) 
             self.content_layout.addWidget(vpi, i // self.collum_number, i % self.collum_number)
@@ -128,9 +126,7 @@ class VideoPlayer(QWidget):
 
     def play(self):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
-            
             self.mediaPlayer.pause()
-            print(self.mediaPlayer.position())
         else:
             #self.mediaPlayer.setPosition(500)
             self.mediaPlayer.play()
@@ -185,8 +181,8 @@ class VideoPlayerItem(QWidget):
         self.setMinimumWidth(size[0])
         self.setMaximumHeight(size[1])
         self.setMinimumHeight(size[1])
-        # self.setMaximumSize(maxw=size[0], maxh=size[1])
         self.mouseDoubleClickEvent = self.double_click_event
+        self.setContentsMargins(0,0,0,0)
     
     def double_click_event(self, event):
         self.clicked.emit(int(self.frame_num))
