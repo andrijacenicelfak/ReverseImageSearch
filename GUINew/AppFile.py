@@ -1,3 +1,4 @@
+import array
 from functools import reduce
 import pathlib
 from PyQt5.QtWidgets import *
@@ -131,6 +132,9 @@ class App(QMainWindow):
 
     def file_add_image_db(self, path, commit=False):
         image = cv2.imread(path)
+        if image is not None and not image.any() :
+            print(f"No image found : {path}")
+            return
         image_data = self.image_analyzation.getImageData(
             image,
             classesData=True,
@@ -190,7 +194,7 @@ class App(QMainWindow):
                 for img_path in batch:
                     queue = manager.Queue()
                     ext = pathlib.Path(img_path).suffix
-                    if  ext not in SUPPORTED_VIDEO_EXTENSIONS:
+                    if  ext.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
                         self.file_add_image_db(img_path)
                     else:
                         self.file_add_video_db(img_path, queue=queue, commit=False)
@@ -236,6 +240,7 @@ class App(QMainWindow):
         )
         # TODO : Add logic to check if the file is in the database, and if it is not it adds it to the database
         # self.file_add_image_db(search_params.imagePath)
+        # Maybe if there is not a 100% match add the image to the database
 
         self.img_db.open_connection()
         imgs = self.img_db.search_by_image(

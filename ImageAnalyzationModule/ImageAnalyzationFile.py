@@ -170,6 +170,7 @@ class ImageAnalyzation:
         analyzationType: AnalyzationType = AnalyzationType.CoderDecoder,
         aedType: type = AutoEncoderDecoder,
         coderDecoderModel: str = None,
+        normalization = True
     ):
         model = model.split(".")[0]
         self.model = YOLO(model)
@@ -188,7 +189,7 @@ class ImageAnalyzation:
                     torchvision.transforms.Normalize((0.5), (0.5))
                 ]
             )
-            self.coderDecoderModel = aedType()
+            self.coderDecoderModel = aedType(normalization = normalization)
             self.coderDecoderModel.eval()
             self.coderDecoderModel.load_state_dict(
                 torch.load(f".\\models\\{coderDecoderModel}.model")

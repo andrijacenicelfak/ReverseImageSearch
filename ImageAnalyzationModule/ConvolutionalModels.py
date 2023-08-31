@@ -40,6 +40,31 @@ class EncoderLayer(nn.Module):
         x = x + start
         return self.relu(x)
     
+class EncoderLayerNoNorm(nn.Module):
+    def __init__(self, in_channels, out_channels, downsample = True):
+        super(EncoderLayerNoNorm, self).__init__()
+        if downsample:
+            self.layer1 = nn.Sequential(
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=2, padding=1, bias=False),
+                nn.ReLU(inplace=True)
+            )
+            self.downsample = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=2, padding=0, bias=False)
+        else:
+            self.layer1 = nn.Sequential(
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+                nn.ReLU(inplace=True)
+            )
+            self.downsample = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0, bias=False)
+        self.layer2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride= 1, padding=1, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        start = x if self.downsample is None else self.downsample(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = x + start
+        return self.relu(x)
+    
 class DecoderLayer(nn.Module):
     def __init__(self, in_channels, out_channels, upsample = True):
         super(DecoderLayer, self).__init__()
@@ -78,15 +103,15 @@ class DecoderLayer(nn.Module):
         return x + start
 
 class AutoEncoderDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, normalization = True):
         super(AutoEncoderDecoder, self).__init__()
-
-        self.encoderl1 = EncoderLayer(in_channels=3, out_channels=16, downsample=True)      # 3 x 128x128 -> 16 x 64x64
-        self.encoderl2 = EncoderLayer(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 32x32
-        self.encoderl3 = EncoderLayer(in_channels=32, out_channels=64, downsample=True)     # 32 x 64x64 -> 64 x 16x16
-        self.encoderl4 = EncoderLayer(in_channels=64, out_channels=128, downsample=True)    # 64 x 16x16 -> 128 x 8x8
-        self.encoderl5 = EncoderLayer(in_channels=128, out_channels=256, downsample=True)   # 128 x 8x8 -> 256 x 4x4
-        self.encoderl6 = EncoderLayer(in_channels=256, out_channels=512, downsample=True)   # 256 x 4x4 -> 512 x 2x2
+        encoder_type = EncoderLayer if normalization else EncoderLayerNoNorm
+        self.encoderl1 = encoder_type(in_channels=3, out_channels=16, downsample=True)      # 3 x 128x128 -> 16 x 64x64
+        self.encoderl2 = encoder_type(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 32x32
+        self.encoderl3 = encoder_type(in_channels=32, out_channels=64, downsample=True)     # 32 x 64x64 -> 64 x 16x16
+        self.encoderl4 = encoder_type(in_channels=64, out_channels=128, downsample=True)    # 64 x 16x16 -> 128 x 8x8
+        self.encoderl5 = encoder_type(in_channels=128, out_channels=256, downsample=True)   # 128 x 8x8 -> 256 x 4x4
+        self.encoderl6 = encoder_type(in_channels=256, out_channels=512, downsample=True)   # 256 x 4x4 -> 512 x 2x2
 
         self.vectorLenght = 2048
 
@@ -121,16 +146,18 @@ class AutoEncoderDecoder(nn.Module):
         return x
     
 class AutoEncoderDecoderS(nn.Module):
-    def __init__(self):
+    def __init__(self, normalization = True):
         super(AutoEncoderDecoderS, self).__init__()
 
-        self.encoderl1 = EncoderLayer(in_channels=3, out_channels=8, downsample=True)      #3 x 128x128 -> 8 x 64x64
-        self.encoderl2 = EncoderLayer(in_channels=8, out_channels=16, downsample=True)     # 8 x 64x64 -> 16 x 32x32
-        self.encoderl3 = EncoderLayer(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 16x16
-        self.encoderl4 = EncoderLayer(in_channels=32, out_channels=64, downsample=True)    # 32 x 16x16 -> 64 x 8x8
-        self.encoderl5 = EncoderLayer(in_channels=64, out_channels=96, downsample=True)   # 64 x 8x8 -> 96 x 4x4
-        self.encoderl6 = EncoderLayer(in_channels=96, out_channels=128, downsample=True)   # 96 x 4x4 -> 128 x 2x2
-        self.encoderl7 = EncoderLayer(in_channels=128, out_channels=256, downsample=True)   # 128 x 2x2 -> 256 x 1x11
+        encoder_type = EncoderLayer if normalization else EncoderLayerNoNorm
+
+        self.encoderl1 = encoder_type(in_channels=3, out_channels=8, downsample=True)      #3 x 128x128 -> 8 x 64x64
+        self.encoderl2 = encoder_type(in_channels=8, out_channels=16, downsample=True)     # 8 x 64x64 -> 16 x 32x32
+        self.encoderl3 = encoder_type(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 16x16
+        self.encoderl4 = encoder_type(in_channels=32, out_channels=64, downsample=True)    # 32 x 16x16 -> 64 x 8x8
+        self.encoderl5 = encoder_type(in_channels=64, out_channels=96, downsample=True)   # 64 x 8x8 -> 96 x 4x4
+        self.encoderl6 = encoder_type(in_channels=96, out_channels=128, downsample=True)   # 96 x 4x4 -> 128 x 2x2
+        self.encoderl7 = encoder_type(in_channels=128, out_channels=256, downsample=True)   # 128 x 2x2 -> 256 x 1x11
 
         self.vectorLenght = 256
 
@@ -168,16 +195,17 @@ class AutoEncoderDecoderS(nn.Module):
         return x
 
 class AutoEncoderDecoderXS(nn.Module):
-    def __init__(self):
+    def __init__(self,normalization = True):
         super(AutoEncoderDecoderXS, self).__init__()
+        encoder_type = EncoderLayer if normalization else EncoderLayerNoNorm
 
-        self.encoderl1 = EncoderLayer(in_channels=3, out_channels=8, downsample=True)      #3 x 128x128 -> 8 x 64x64
-        self.encoderl2 = EncoderLayer(in_channels=8, out_channels=16, downsample=True)     # 8 x 64x64 -> 16 x 32x32
-        self.encoderl3 = EncoderLayer(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 16x16
-        self.encoderl4 = EncoderLayer(in_channels=32, out_channels=64, downsample=True)    # 32 x 16x16 -> 64 x 8x8
-        self.encoderl5 = EncoderLayer(in_channels=64, out_channels=96, downsample=True)   # 64 x 8x8 -> 96 x 4x4
-        self.encoderl6 = EncoderLayer(in_channels=96, out_channels=128, downsample=True)   # 96 x 4x4 -> 128 x 2x2
-        self.encoderl7 = EncoderLayer(in_channels=128, out_channels=128, downsample=True)   # 128 x 2x2 -> 128 x 1x1
+        self.encoderl1 = encoder_type(in_channels=3, out_channels=8, downsample=True)      #3 x 128x128 -> 8 x 64x64
+        self.encoderl2 = encoder_type(in_channels=8, out_channels=16, downsample=True)     # 8 x 64x64 -> 16 x 32x32
+        self.encoderl3 = encoder_type(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 16x16
+        self.encoderl4 = encoder_type(in_channels=32, out_channels=64, downsample=True)    # 32 x 16x16 -> 64 x 8x8
+        self.encoderl5 = encoder_type(in_channels=64, out_channels=96, downsample=True)   # 64 x 8x8 -> 96 x 4x4
+        self.encoderl6 = encoder_type(in_channels=96, out_channels=128, downsample=True)   # 96 x 4x4 -> 128 x 2x2
+        self.encoderl7 = encoder_type(in_channels=128, out_channels=128, downsample=True)   # 128 x 2x2 -> 128 x 1x1
 
         self.vectorLenght = 128
 
@@ -215,17 +243,18 @@ class AutoEncoderDecoderXS(nn.Module):
         return x
 
 class AutoEncoderDecoderM(nn.Module):
-    def __init__(self):
+    def __init__(self, normalization = True):
         super(AutoEncoderDecoderM, self).__init__()
+        encoder_type = EncoderLayer if normalization else EncoderLayerNoNorm
 
-        self.encoderl1 = EncoderLayer(in_channels=3, out_channels=16, downsample=False)     # 3 x 128x128 -> 16 x 128x128
-        self.encoderl2 = EncoderLayer(in_channels=16, out_channels=16, downsample=True)     # 16 x 128x128 -> 16 x 64x64
-        self.encoderl3 = EncoderLayer(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 32x32
-        self.encoderl4 = EncoderLayer(in_channels=32, out_channels=64, downsample=False)    # 32 x 32x32 -> 64 x 32x32
-        self.encoderl5 = EncoderLayer(in_channels=64, out_channels=64, downsample=True)     # 64 x 32x32 -> 64 x 16x16
-        self.encoderl6 = EncoderLayer(in_channels=64, out_channels=128, downsample=True)    # 64 x 16x16 -> 128 x 8x8
-        self.encoderl7 = EncoderLayer(in_channels=128, out_channels=256, downsample=True)   # 128 x 8x8 -> 256 x 4x4
-        self.encoderl8 = EncoderLayer(in_channels=256, out_channels=512, downsample=False)  # 256 x 4x4 -> 512 x 4x4
+        self.encoderl1 = encoder_type(in_channels=3, out_channels=16, downsample=False)     # 3 x 128x128 -> 16 x 128x128
+        self.encoderl2 = encoder_type(in_channels=16, out_channels=16, downsample=True)     # 16 x 128x128 -> 16 x 64x64
+        self.encoderl3 = encoder_type(in_channels=16, out_channels=32, downsample=True)     # 16 x 64x64 -> 32 x 32x32
+        self.encoderl4 = encoder_type(in_channels=32, out_channels=64, downsample=False)    # 32 x 32x32 -> 64 x 32x32
+        self.encoderl5 = encoder_type(in_channels=64, out_channels=64, downsample=True)     # 64 x 32x32 -> 64 x 16x16
+        self.encoderl6 = encoder_type(in_channels=64, out_channels=128, downsample=True)    # 64 x 16x16 -> 128 x 8x8
+        self.encoderl7 = encoder_type(in_channels=128, out_channels=256, downsample=True)   # 128 x 8x8 -> 256 x 4x4
+        self.encoderl8 = encoder_type(in_channels=256, out_channels=512, downsample=False)  # 256 x 4x4 -> 512 x 4x4
 
         self.vectorLenght = 8192
 

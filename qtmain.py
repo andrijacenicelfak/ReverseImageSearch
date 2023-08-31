@@ -6,7 +6,7 @@ import sys
 
 from DB.SqliteDB import ImageDB
 from GUINew.AppFile import App
-from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoderXS
+from ImageAnalyzationModule.ConvolutionalModels import *
 
 from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
@@ -16,9 +16,7 @@ if __name__ == "__main__":
     ai = ImageAnalyzation(
         "yolov8s.pt",
         device="cuda",
-        analyzationType=AnalyzationType.CoderDecoder,
-        aedType=AutoEncoderDecoderXS,
-        coderDecoderModel="1XS-15",
+        aedType=AutoEncoderDecoderS, coderDecoderModel="3S-NF-29", normalization=False
     )
     db = ImageDB()
     window = App(image_analyzation=ai, img_db=db)

@@ -159,7 +159,7 @@ class ImageAddWorker(QThread):
                 #TODO: Image has been deleted, delete from database
                 print("Image deleted : " + path)
                 continue
-
+            
             px = px.scaled(IMAGE_SIZE, IMAGE_SIZE)
             data_emit.append((px, f"Classes: {classes}", d.orgImage))
             if i % 5 == 0:
