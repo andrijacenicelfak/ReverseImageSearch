@@ -3,7 +3,7 @@ import multiprocessing as mp
 
 
 class FrameData:
-    def __init__(self, frame, frame_number, video_path):
+    def __init__(self, frame, frame_number, video_path = None):
         self.frame = frame
         self.frame_number = frame_number
         self.video_path = video_path
