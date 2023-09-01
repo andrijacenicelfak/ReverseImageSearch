@@ -117,7 +117,6 @@ class App(QMainWindow):
         self.setGeometry(100, 100, 900, 900)
 
     def enter_search_box(self):
-        print("ENTERRRRR")
         self.search_keyword_action()
 
     def file_add_action(self):
@@ -225,7 +224,7 @@ class App(QMainWindow):
         img_data: ImageData = search_params.data
         self.search_image.show()
         self.search_image.showImage(
-            imagePath=search_params.imagePath, img_data=img_data
+            imagePath=search_params.imagePath, img_data=img_data, index=search_params.selectedIndex
         )
         # TODO : Add logic to check if the file is in the database, and if it is not it adds it to the database
         # self.file_add_image_db(search_params.imagePath)

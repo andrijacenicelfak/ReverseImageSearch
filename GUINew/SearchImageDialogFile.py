@@ -21,6 +21,7 @@ class SearchImageDialog(QDialog):
         options_only=False,
     ):
         super().__init__()
+        self.seleted_object = -1
         self.setWindowTitle("Select image" if not options_only else "Settings")
         self.image_analyzation = image_analyzation
         self.has_image = False
