@@ -1,9 +1,10 @@
 import array
 from functools import reduce
 import pathlib
+import typing
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler
+from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler
 from PyQt5.QtGui import QIcon
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
@@ -13,6 +14,7 @@ from GUINew.ImageGridFile import ImageGrid
 from GUINew.SearchImageDialogFile import SearchImageDialog
 from GUINew.SearchImageFile import *
 from ImageAnalyzationModule.ImageAnalyzationFile import *
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import *
 from GUI.GUIFunctions import *
 import multiprocessing as mp
 from FileSystem.FileExplorerFile import search
@@ -20,6 +22,7 @@ from FileSystem.FileExplorerFile import search
 from Video.histoDThresh import summ_video_parallel
 from GUINew.ThreadsFile import *
 import os
+from GUINew.IndexFunctions import IndexFunction
 
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
@@ -32,9 +35,7 @@ class App(QMainWindow):
         super().__init__()
         self.video_player = None
         #
-        self.thread_manager = MyThreadManager()
-        self.num_of_processes = mp.cpu_count()
-        self.pool = mp.Pool(self.num_of_processes)
+        self.index_worker = None        
         # qInstallMessageHandler(handle)
 
         #
@@ -147,6 +148,7 @@ class App(QMainWindow):
         self.img_db.addImage(image_data, commit_flag=commit)
 
     def file_add_video_db(self, path, queue, commit=False):
+        #TODO change this to use the new class for indexing
         summ_video_parallel(path, queue, self.num_of_processes, self.pool)
         i = 0
         os.makedirs(TEMP_VIDEO_FILE_PATH, exist_ok=True)  ##x
@@ -181,26 +183,13 @@ class App(QMainWindow):
         if folder_path:
             self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.thread_manager.start_thread(
-                function=self.index_folder, args=(folder_path, self.img_db)
-            )
+            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, 4, folder_path)
+            self.index_worker.progress.connect(self.set_loading_percent)
+            self.index_worker.done.connect(self.set_cursor_arrow)
+            self.index_worker.start()
+            self.set_loading_percent(0)
 
-    def index_folder(self, path, img_db):
-        xD = time.time()
-        img_db.open_connection()
-
-        with mp.Manager() as manager:
-            for batch in search(path):
-                for img_path in batch:
-                    queue = manager.Queue()
-                    ext = pathlib.Path(img_path).suffix
-                    if  ext.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
-                        self.file_add_image_db(img_path)
-                    else:
-                        self.file_add_video_db(img_path, queue=queue, commit=False)
-        img_db.commit_changes()
-        img_db.close_connection()
-        print(f"Total time:{time.time()-xD}")
+    def set_cursor_arrow(self):
         self.setCursor(Qt.ArrowCursor)
 
     def search_keyword_action(self):
@@ -282,7 +271,7 @@ class App(QMainWindow):
     def set_loading_percent(self, percent):
         if percent == 0:
             self.loading_percent_widget.show()
-        if percent > 98:
+        if percent >= 100:
             self.loading_percent_widget.hide()
         self.loading_percent_widget.setValue(int(percent))
 
@@ -301,5 +290,4 @@ class App(QMainWindow):
         self.video_player = VideoPlayer(fileName=video_path, data=data)
         self.video_player.setWindowTitle("Player")
         self.video_player.resize(1024, 960)
-        # self.video_player.mediaPlayer.setPosition(position) TODO : set the first position
         self.video_player.show() 

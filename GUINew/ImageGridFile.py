@@ -11,7 +11,7 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QCoreApplication
 from GUINew.ImagePreviewFile import ImagePreview
 
-from ImageAnalyzationModule.ImageAnalyzationFile import *
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import *
 from GUI.GUIFunctions import *
 
 IMAGE_SIZE = 200

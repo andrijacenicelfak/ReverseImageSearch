@@ -84,6 +84,7 @@ class VideoPlayer(QWidget):
             self.playButton.setEnabled(True)
             self.statusBar.showMessage(fileName)
             self.play()
+        self.mediaPlayer.setPosition(data[0][1])
 
     @QtCore.pyqtSlot(int)
     def item_click_position_change(self, frame_num : int):

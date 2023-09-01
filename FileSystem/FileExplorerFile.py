@@ -1,10 +1,10 @@
 import os
 import random
+
 class FileExplorer:
     def __init__(self, startDirectory):
         self.startDirectory = startDirectory
         self.images = []
-        self.image_extensions = ['.bmp', '.pbm', '.pgm', '.gif', '.sr', '.ras', '.jpeg', '.jpg', '.jpe', '.jp2', '.tiff', '.tif', '.png'] # list of image file formats supported by OpenCV
         self.loadImages()
 
     def search(self) -> list[str]:
@@ -12,7 +12,7 @@ class FileExplorer:
         for root, _, files in os.walk(self.startDirectory):
             for file in files:
                 _, ext = os.path.splitext(file)
-                if ext in self.image_extensions:
+                if ext in IMG_EXTENTIONS or VIDEO_EXTENTIONS:
                     images.append(root + "\\" +file)
         self.images = images
         self.saveImages(images)
@@ -47,7 +47,36 @@ class FileExplorer:
     def randomImage(self):
         return self.images[int(random.random() * len(self.images))]
     
-def search(startDirectory):
+
+IMG_EXTENTIONS = ['.bmp', '.pbm', '.pgm', '.gif', '.sr', '.ras', '.jpeg', '.jpg', '.jpe', '.jp2', '.tiff', '.tif', '.png']
+VIDEO_EXTENTIONS = ['.mp4', '.avi']
+def search(start_directory : str) -> list[list[str]]:
+    images = []
+    for root, _, files in os.walk(start_directory):
+        for file in files:
+            _, ext = os.path.splitext(file)
+            ext = ext.lower()
+            if ext in IMG_EXTENTIONS or ext in VIDEO_EXTENTIONS:
+                images.append(root + "\\" +file)
+            if len(images) > 10:
+                for_yield = images
+                images = []
+                yield for_yield
+    if len(images) > 0:
+        yield images
+
+def search_all(start_directory : str) -> list[str]:
+    images = []
+    for root, _, files in os.walk(start_directory):
+        for file in files:
+            _, ext = os.path.splitext(file)
+            ext = ext.lower()
+            if ext in IMG_EXTENTIONS or ext in VIDEO_EXTENTIONS:
+                filepath = root + "\\" +file
+                images.append(filepath)
+    return images
+
+def searchOld(startDirectory):
     file_list = os.listdir(startDirectory)
     yield_this=[]
     counter=0

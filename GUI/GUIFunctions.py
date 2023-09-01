@@ -1,5 +1,5 @@
 import numpy as np
-from ImageAnalyzationModule.ImageAnalyzationFile import ImageData, ImageClassificationData, BoundingBox
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import ImageData, ImageClassificationData, BoundingBox
 import cv2
 import random
 from PyQt5.QtGui import QPixmap, QImage

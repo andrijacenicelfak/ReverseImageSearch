@@ -7,9 +7,6 @@ import sys
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPixmap, QImage, QDesktopServices
 from PyQt5.QtCore import Qt, QUrl, pyqtSignal
-from GUINew.VideoPlayerFile import VideoPlayer
-
-from ImageAnalyzationModule.ImageAnalyzationFile import *
 from GUI.GUIFunctions import *
 
 
