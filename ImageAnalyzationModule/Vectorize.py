@@ -23,7 +23,7 @@ def download_model():
     gdown.download_folder(URL,quiet=True,use_cookies=False)#mora ovako umesto MODEL_FOLDER :'(
     print("Downloaded model!...")
     
-def cosine_distance(vec1,vec2):
+def cosine_similarity(vec1,vec2):
     return np.dot(vec1,vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2))
 
 class Vectorize:
@@ -38,6 +38,6 @@ class Vectorize:
     def compare_sentences(self,sentence1,sentence2):
         vec1=self.infer_vector(sentence1)
         vec2=self.infer_vector(sentence2)
-        return cosine_distance(vec1,vec2)
+        return cosine_similarity(vec1,vec2)
     def compare_vectors(self,vec1,vec2):
-        return cosine_distance(vec1,vec2)
+        return cosine_similarity(vec1,vec2)

@@ -24,7 +24,8 @@ from GUINew.ThreadsFile import *
 import os
 from GUINew.IndexFunctions import IndexFunction
 
-from ImageAnalyzationModule import Describe,Vectorize
+from ImageAnalyzationModule.Vectorize import Vectorize
+from ImageAnalyzationModule.Describe import Describe
 
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
@@ -226,6 +227,8 @@ class App(QMainWindow):
 
         self.setCursor(Qt.WaitCursor)
         img_data: ImageData = search_params.data
+        img_data.description=self.desc.caption(img_data.orgImage)
+        img_data.vector=self.vec.infer_vector(img_data.description)
         self.search_image.show()
         self.search_image.showImage(
             imagePath=search_params.imagePath, img_data=img_data, index=search_params.selectedIndex
@@ -260,7 +263,9 @@ class App(QMainWindow):
                 minObjWeight=search_params.minObjWeight,
                 selectedIndex=search_params.selectedIndex,
             )
-            image_list.append(DisplayItem(img.orgImage, conf, img))
+
+            new_conf=0.4*conf+0.6*self.vec.compare_vectors(img_data.vector,img.vector)
+            image_list.append(DisplayItem(img.orgImage, new_conf, img))
 
         av = image_list.average()
         image_list.filter_sort(av)
