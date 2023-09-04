@@ -6,7 +6,9 @@ from DB.SqliteDB import ImageDB
 import FileSystem.FileExplorerFile as fe
 import cv2
 from GUI.GUIFunctions import TEMP_VIDEO_FILE_PATH
+from ImageAnalyzationModule.Describe import Describe
 from ImageAnalyzationModule.ImageAnalyzationFile import ImageAnalyzation
+from ImageAnalyzationModule.Vectorize import Vectorize
 from Video.histoDThresh import *
 from queue import Empty
 from PyQt5.QtCore import pyqtSignal, QThread
@@ -22,7 +24,7 @@ def image_load(input_queue : mp.Queue, files : list[str]):
             sum_video_all(file, input_queue)
     input_queue.put(None)
 
-def analyze_image(img_and_path, ia : ImageAnalyzation, database : ImageDB):
+def analyze_image(img_and_path, ia : ImageAnalyzation, database : ImageDB,desc:Describe,vec:Vectorize):
     image, path = img_and_path
     if image is not None and not image.any() :
         print(f"No image found : {path}")
@@ -35,10 +37,12 @@ def analyze_image(img_and_path, ia : ImageAnalyzation, database : ImageDB):
         returnOriginalImage=False,
         classesConfidence=0.35,
     )
+    image_data.description=desc.caption(image)
+    image_data.vector=vec.infer_vector(image_data.description)
     image_data.orgImage = path
     database.addImage(image_data, commit_flag=False)
 
-def analyze_frame(frame : FrameData, ia : ImageAnalyzation, database : ImageDB, save_file_queue : mp.Queue):
+def analyze_frame(frame : FrameData, ia : ImageAnalyzation, database : ImageDB, save_file_queue : mp.Queue,desc:Describe,vec:Vectorize):
     video_name = os.path.basename(frame.video_path)
     # print(f"{video_name}:{frame.frame_number}")
     image_data = ia.getImageData(
@@ -49,6 +53,9 @@ def analyze_frame(frame : FrameData, ia : ImageAnalyzation, database : ImageDB, 
         returnOriginalImage=False,
         classesConfidence=0.35,
     )
+    rgb_frame=cv2.cvtColor(frame.frame, cv2.COLOR_BGR2RGB)
+    image_data.description=desc.caption(rgb_frame,video_flag=True)
+    image_data.vector=vec.infer_vector(image_data.description)
     fake_image_path =  TEMP_VIDEO_FILE_PATH + f"\\{video_name}\\{str(frame.frame_number)}.png"  ##x
     real_video_path_plus_image = frame.video_path + f"\\{str(frame.frame_number)}.png"
 
@@ -76,10 +83,12 @@ def save_worker(save_queue: mp.Queue, num_of_adders : int):
 class IndexFunction(QThread):
     progress = pyqtSignal(int)
     done = pyqtSignal()
-    def __init__(self, ia : ImageAnalyzation, database : ImageDB, num_of_proc : int, path : str):
+    def __init__(self, ia : ImageAnalyzation, database : ImageDB,num_of_proc : int, path : str,desc:Describe,vec:Vectorize):
         super().__init__()
         self.ia = ia
         self.database = database
+        self.desc=desc
+        self.vec=vec
         self.num_of_proc = num_of_proc
         self.path = path
         pass
@@ -97,9 +106,9 @@ class IndexFunction(QThread):
                     i += 1
                 elif isinstance(data, FrameData):
                     file_count += 1
-                    analyze_frame(data, self.ia, self.database, save_file_queue)
+                    analyze_frame(data, self.ia, self.database, save_file_queue,self.desc,self.vec)
                 else:
-                    analyze_image(data, self.ia, self.database)
+                    analyze_image(data, self.ia, self.database,self.desc,self.vec)
                 if i == self.num_of_proc:
                     break
                 if file_count > 0:

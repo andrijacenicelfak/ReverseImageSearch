@@ -24,6 +24,8 @@ from GUINew.ThreadsFile import *
 import os
 from GUINew.IndexFunctions import IndexFunction
 
+from ImageAnalyzationModule import Describe,Vectorize
+
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
 def handle(type, context, message):
@@ -31,7 +33,7 @@ def handle(type, context, message):
 
 class App(QMainWindow):
 
-    def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
+    def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB,desc:Describe,vec:Vectorize):
         super().__init__()
         self.video_player = None
         #
@@ -43,6 +45,8 @@ class App(QMainWindow):
         self.content = QWidget()
         self.image_analyzation = image_analyzation
         self.img_db = img_db
+        self.desc=desc
+        self.vec=vec
         self.main_layout = QVBoxLayout()
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
@@ -182,7 +186,7 @@ class App(QMainWindow):
         if folder_path:
             self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path)
+            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path,self.desc,self.vec)
             self.index_worker.progress.connect(self.set_loading_percent)
             self.index_worker.done.connect(self.set_cursor_arrow)
             self.index_worker.start()

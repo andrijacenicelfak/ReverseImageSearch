@@ -57,11 +57,15 @@ class ImageData:
         orgImage: None,
         classes: list[ImageClassificationData] = [],
         features: list = [],
+        vector=None,
+        description=None,
         histogram=None,
     ):
         self.classes = classes
         self.features = features
         self.orgImage = orgImage
+        self.vector=vector
+        self.description=description
         self.histogram = histogram
 
     # def __eq__(self, other) -> bool:

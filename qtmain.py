@@ -9,6 +9,10 @@ from GUINew.AppFile import App
 from ImageAnalyzationModule.ConvolutionalModels import *
 
 from ImageAnalyzationModule.ImageAnalyzationFile import *
+
+from ImageAnalyzationModule.Describe import Describe
+from ImageAnalyzationModule.Vectorize import Vectorize
+
 from GUI.GUIFunctions import *
 
 if __name__ == "__main__":
@@ -19,6 +23,8 @@ if __name__ == "__main__":
         aedType=AutoEncoderDecoderS, coderDecoderModel="3S-NF-29", normalization=False
     )
     db = ImageDB()
-    window = App(image_analyzation=ai, img_db=db)
+    desc=Describe()
+    vec=Vectorize()
+    window = App(image_analyzation=ai, img_db=db,vec=vec,desc=desc)
     window.show()
     sys.exit(app.exec_())
