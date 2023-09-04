@@ -108,6 +108,8 @@ class IndexFunction(QThread):
                         self.progress.emit(int(new))
                         last = new
                 num +=1
+                if num > file_count:
+                    file_count+=1
             except Empty:
                 continue
         save_file_queue.put(None)
