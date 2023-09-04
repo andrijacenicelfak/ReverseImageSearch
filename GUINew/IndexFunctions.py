@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import gensim
 import os
 import pathlib
 import time
@@ -40,7 +41,7 @@ def analyze_image(img_and_path, ia : ImageAnalyzation, database : ImageDB,desc:D
     image_data.description=desc.caption(image)
     image_data.vector=vec.infer_vector(image_data.description)
     image_data.orgImage = path
-    database.addImage(image_data, commit_flag=False)
+    database.addImage(image_data)
 
 def analyze_frame(frame : FrameData, ia : ImageAnalyzation, database : ImageDB, save_file_queue : mp.Queue,desc:Describe,vec:Vectorize):
     video_name = os.path.basename(frame.video_path)
@@ -54,7 +55,7 @@ def analyze_frame(frame : FrameData, ia : ImageAnalyzation, database : ImageDB, 
         classesConfidence=0.35,
     )
     rgb_frame=cv2.cvtColor(frame.frame, cv2.COLOR_BGR2RGB)
-    image_data.description=desc.caption(rgb_frame,video_flag=True)
+    image_data.description=desc.caption(rgb_frame)
     image_data.vector=vec.infer_vector(image_data.description)
     fake_image_path =  TEMP_VIDEO_FILE_PATH + f"\\{video_name}\\{str(frame.frame_number)}.png"  ##x
     real_video_path_plus_image = frame.video_path + f"\\{str(frame.frame_number)}.png"

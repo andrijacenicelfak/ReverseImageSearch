@@ -39,7 +39,9 @@ class ImageDB:
                     path TEXT NOT NULL,
                     flag0 INTEGER NOT NULL,
                     flag1 INTEGER NOT NULL,
-                    desc BLOB NOT NULL         
+                    desc BLOB NOT NULL,
+                    caption_vec BLOB NOT NULL,
+                    caption TEXT NOT NULL
                 );
             """)        
             self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_objects_image_id ON objects(image_id);")    
@@ -53,7 +55,7 @@ class ImageDB:
     def addImage(self,dbstruct: ImageData,commit_flag=True):#orgImage is image but here is path lol
         try:
             flag0, flag1 = get_image_flag([x.className for x in dbstruct.classes])
-            self.cursor.execute('INSERT INTO images (path, flag0, flag1, desc) VALUES (?, ?, ?, ?)', (dbstruct.orgImage, flag0, flag1, pickle.dumps(dbstruct.features)))
+            self.cursor.execute('INSERT INTO images (path, flag0, flag1, desc, caption_vec, caption) VALUES (?, ?, ?, ?, ?, ?)', (dbstruct.orgImage, flag0, flag1, pickle.dumps(dbstruct.features), pickle.dumps(dbstruct.vector), dbstruct.description))
             img_id = self.cursor.lastrowid  
             for obj in dbstruct.classes:
                 self.cursor.execute('INSERT INTO objects (image_id, class_name, desc,weight, conf) VALUES (?, ?, ?,?, ?)', (img_id, obj.className, pickle.dumps(obj.features),obj.weight, obj.conf))
@@ -91,7 +93,7 @@ class ImageDB:
             for img_id in image_objects.keys():
                 self.cursor.execute("SELECT i.* FROM images i WHERE i.id = ?", (img_id,))
                 image = self.cursor.fetchone()
-                results.append(ImageData(image[1], image_objects[img_id], pickle.loads(image[2])))
+                results.append(ImageData(image[1], image_objects[img_id], pickle.loads(image[2]), pickle.loads(image[3]), image[4]))
             return results#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
         
         
@@ -118,9 +120,9 @@ class ImageDB:
         image_objects  = {}
         
         for row in rows:
-            img_id, img_path, flag0, flag1, img_features, obj_id, _, class_name, obj_features, weight, conf= row
+            img_id, img_path, flag0, flag1, img_features, caption_vec, caption, obj_id, _, class_name, obj_features, weight, conf= row
             if img_id not in image_objects:
-                image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features))
+                image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features), pickle.loads(caption_vec), caption)
                 
             image_objects[img_id].classes.append(ImageClassificationData(class_name,None,pickle.loads(obj_features),weight, conf=conf))
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
