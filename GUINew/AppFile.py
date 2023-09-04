@@ -4,7 +4,7 @@ import pathlib
 import typing
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler
+from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler, QtMsgType, QMessageLogContext
 from PyQt5.QtGui import QIcon
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
@@ -29,8 +29,10 @@ from ImageAnalyzationModule.Describe import Describe
 
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
-def handle(type, context, message):
-    pass
+def handle(type : QtMsgType, context : QMessageLogContext, message : str):
+    if context.category == "qt.gui.icc":
+        return
+    print(f"type : {type}, category : {context.category}, message : {message}")
 
 class App(QMainWindow):
 
@@ -39,7 +41,7 @@ class App(QMainWindow):
         self.video_player = None
         #
         self.index_worker = None        
-        # qInstallMessageHandler(handle)
+        qInstallMessageHandler(handle)
 
         #
         self.setWindowTitle("App")
@@ -187,7 +189,7 @@ class App(QMainWindow):
         if folder_path:
             self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path,self.desc,self.vec)
+            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path, os.cpu_count(), self.desc, self.vec)
             self.index_worker.progress.connect(self.set_loading_percent)
             self.index_worker.done.connect(self.set_cursor_arrow)
             self.index_worker.start()
