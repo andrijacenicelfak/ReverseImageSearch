@@ -96,13 +96,22 @@ class ImageDB:
         
     def search_by_image(self, terms:list):
         flag0, flag1 = get_image_flag(terms)
-        self.cursor.execute("""
-                SELECT i.*, o.* FROM images i
-                JOIN objects o ON i.id = o.image_id
-                WHERE ((i.flag0 & ?) != 0 AND (i.flag1 & ?) != 0) 
-                OR ((i.flag0 & ?) != 0 AND ? = 0)
-                OR (? = 0 AND (i.flag1 & ?) != 0)
-            """, (flag0, flag1, flag0, flag1, flag0, flag1))
+        
+        if flag0 != 0 or flag1 != 0:
+            self.cursor.execute("""
+                    SELECT i.*, o.* FROM images i
+                    JOIN objects o ON i.id = o.image_id
+                    WHERE ((i.flag0 & ?) != 0 AND (i.flag1 & ?) != 0) 
+                    OR ((i.flag0 & ?) != 0 AND ? = 0)
+                    OR (? = 0 AND (i.flag1 & ?) != 0)
+                """, (flag0, flag1, flag0, flag1, flag0, flag1))
+        else:
+            self.cursor.execute("""
+                    SELECT i.*, 0.* FROM images i
+                    JOIN objects o ON i.id = o.image_id
+                    WHERE i.flag0 = 0 AND i.flag1 = 0
+                    """)       
+            
         rows = self.cursor.fetchall()        
         
         image_objects  = {}
