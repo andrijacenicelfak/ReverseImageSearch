@@ -127,7 +127,7 @@ class IndexFunction(QThread):
         for i in range(self.num_of_proc):
             files_chunk = files[start_index : start_index+chunk_size if i < (self.num_of_proc - 1) else (num_files)]
             start_index+= chunk_size
-            p = mp.Process(target=image_load, args=(input_queue, files_chunk))
+            p = mp.Process(target=image_load, args=(input_queue, files_chunk), name=f"Image load {i}")
             p.start()
             processes.append(p)
         self.database.open_connection()

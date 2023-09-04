@@ -8,11 +8,10 @@ class FrameData:
         self.frame_number = frame_number
         self.video_path = video_path
 
-
 def summ_video(video_path, start_frame, end_frame, output_queue):
     cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-
+    
     prev_frame = None
     prev_hist = None
     prev_sim = 0
@@ -58,9 +57,31 @@ def summ_video(video_path, start_frame, end_frame, output_queue):
     cap.release()
     output_queue.put(None)
 
-
-def sum_video_all(video_path, output_queue):
+def sum_video_all_mp(video_path, output_queue, num_of_proc = 4):
     cap = cv2.VideoCapture(video_path)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    step = total_frames//num_of_proc
+    processes = []
+    for i in range(num_of_proc):
+        start_frame = i*step
+        end_frame = (i+1)*step if i < (num_of_proc-1) else total_frames
+        p = mp.Process(target=sum_video_all, args=(video_path, output_queue, start_frame, end_frame), name=f"Video process {i}")
+        p.start()
+        processes.append(p)
+    
+    for p in processes:
+        p.join()
+    return
+
+def sum_video_all(video_path, output_queue, total_frames = -1, start_frame = 0, end_frame = -1):
+    cap = cv2.VideoCapture(video_path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+
+    if total_frames == -1:
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if end_frame == -1:
+        end_frame = total_frames
+
     prev_frame = None
     prev_hist = None
     prev_sim = 0
@@ -69,7 +90,8 @@ def sum_video_all(video_path, output_queue):
     THRESHOLD_INC = 0.01
     THRESHOLD_DEC = 0.001
     x = -1
-    while True:
+    current_frame = start_frame
+    while current_frame != end_frame:
         ret, frame = cap.read()
         if not ret:
             break
@@ -98,6 +120,7 @@ def sum_video_all(video_path, output_queue):
 
         prev_frame = frame
         prev_hist = h1
+        current_frame += 1
     cap.release()
 
 def summ_video_parallel(video_path: str, queue, num_of_processes: int, pool: mp.Pool):

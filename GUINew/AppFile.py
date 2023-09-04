@@ -182,7 +182,7 @@ class App(QMainWindow):
         if folder_path:
             self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, 4, folder_path)
+            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path)
             self.index_worker.progress.connect(self.set_loading_percent)
             self.index_worker.done.connect(self.set_cursor_arrow)
             self.index_worker.start()
