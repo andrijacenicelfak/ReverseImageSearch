@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import reduce
+from math import sqrt
 import time
 import cv2
 from ultralytics import YOLO
@@ -13,6 +14,7 @@ import os
 import torchvision
 from DB.Functions import get_image_flag
 from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoder
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import *
 
 MAX_SIMMILARITY = 100
 IMAGE_SIZE_AUTOENCODER = (128, 128)
@@ -90,76 +92,6 @@ def modifyDetectClass():
     Detect.forward = forward
     return
 
-
-class BoundingBox:
-    def __init__(self, x1, y1, x2, y2):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-
-    def toStr(self) -> str:
-        return (
-            str(self.x1)
-            + " : "
-            + str(self.x2)
-            + " :: "
-            + str(self.y1)
-            + " : "
-            + str(self.y2)
-        )
-
-    def __eq__(self, other) -> bool:
-        return (
-            self.x1 == other.x1
-            and self.x2 == other.x2
-            and self.y1 == other.y1
-            and self.y2 == other.y2
-        )
-
-
-class ImageClassificationData:
-    def __init__(
-        self,
-        className: str,
-        boundingBox: BoundingBox,
-        features: list = None,
-        weight: float = 0,
-        conf: float = 0,
-    ):
-        self.className: str = className
-        self.boundingBox: BoundingBox = boundingBox
-        self.features = features
-        self.weight: float = weight
-        self.conf = conf
-        self.id = None
-
-    def __eq__(self, other) -> bool:
-        return (
-            self.className == other.className
-            and self.boundingBox == other.boundingBox
-            and self.features == other.features
-            and self.weight == other.weight
-        )
-
-
-class ImageData:
-    def __init__(
-        self,
-        orgImage: None,
-        classes: list[ImageClassificationData] = [],
-        features: list = [],
-        histogram=None,
-    ):
-        self.classes = classes
-        self.features = features
-        self.orgImage = orgImage
-        self.histogram = histogram
-
-    # def __eq__(self, other) -> bool:
-    #     return self.classes == other.classes and self.features == other.features and self.orgImage == other.orgImage
-
-
 class ImageAnalyzation:
     def __init__(
         self,
@@ -169,6 +101,7 @@ class ImageAnalyzation:
         analyzationType: AnalyzationType = AnalyzationType.CoderDecoder,
         aedType: type = AutoEncoderDecoder,
         coderDecoderModel: str = None,
+        normalization = True
     ):
         model = model.split(".")[0]
         self.model = YOLO(model)
@@ -184,9 +117,10 @@ class ImageAnalyzation:
             self.t = torchvision.transforms.Compose(
                 [
                     torchvision.transforms.ToTensor(),
+                    torchvision.transforms.Normalize((0.5), (0.5))
                 ]
             )
-            self.coderDecoderModel = aedType()
+            self.coderDecoderModel = aedType(normalization = normalization)
             self.coderDecoderModel.eval()
             self.coderDecoderModel.load_state_dict(
                 torch.load(f".\\models\\{coderDecoderModel}.model")
@@ -546,9 +480,7 @@ class ImageAnalyzation:
         for i in range(len(imgData1.classes)):
             j = fts[i][0]
             if j != -1 and stf[j][0] == i:
-                sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[
-                    j
-                ].weight
+                sumAll += (fts[i][1] / imgData1.classes[i].weight) * imgData2.classes[j].weight
                 numOfMatches += 1
 
         objectComparison = (
@@ -693,9 +625,9 @@ class ImageAnalyzation:
         treshhold=0.1,
         confidenceCalculation=False,
         magnitudeCalculation=False,
-        classNameComparison= True,
-        scaleDown = True,
-        scale = (0.9, 10)
+        classNameComparison=True,
+        scaleDown=True,
+        scale=(0.9, 10),
     ):
         if icd1.features is None or icd2.features is None:
             raise Exception("Feature vector is None!")
@@ -703,29 +635,41 @@ class ImageAnalyzation:
             raise Exception("No weights for calculating similarity!")
         if classNameComparison and icd1.className != icd2.className:
             return 0
-        # dist = (1 - cosine(icd1.features, icd2.features))
-        dist = self.vectorDistance(
-            icd1.features, icd2.features, magnitudeCalculation=magnitudeCalculation
-        )
-        # The values seem to be between 0.6 - 1.0
-        # fdif = list(filter(lambda x: x > 1e-4, icd2.features - icd1.features))
-        # s = str(reduce(lambda a,b: a + f"{b} ", fdif, ""))
-        # print(s)
-        # print(len(fdif))
+
+        m1 = 0
+        m2 = 0
+        dist = 0
+        v1 = []
+        v2 = []
+        for i in range(len(icd1.features)):
+            f1, f2 = icd1.features[i], icd2.features[i]
+            if f1 != f2:
+                v1.append(f1)
+                v2.append(f2)
+                m1 += f1*f1
+                m2 += f2*f2
+                dist += f1 * f2
+        m1 = sqrt(m1)
+        m2 = sqrt(m2)
+        dist = 1 - sqrt(dist) / max(m1 + m2, 1)
+        # dist = 1 - cosine(v1, v2)
+
+        with open('test.txt', 'w') as f:
+            for f1, f2 in (zip(v1, v2)):
+                f.write(f"{f1}\t{f2}\n")
+
+
+        if magnitudeCalculation and (m1 != 0 and m2 !=0):  # Better results
+            dist *= min(m1, m2) / max(m1, m2)
+
+        # The values seem to be between example 0.6 - 1.0
         if scaleDown:
+            # Values 0.0 - 1.0
             dist = (dist - scale[0]) * scale[1]
-        # Values 0.0 - 1.0
+
         if confidenceCalculation:  # Worse results
             dist = dist * icd1.conf * icd2.conf
-        return dist if dist >= treshhold else 0
-
-    def vectorDistance(self, vec1, vec2, magnitudeCalculation=False):
-        res = 1 - cosine(vec1, vec2)
-        if magnitudeCalculation:
-            l1 = np.linalg.norm(vec1)
-            l2 = np.linalg.norm(vec2)
-            res *= min(l1, l2) / max(l1, l2)
-        return res
+        return min(dist, 1.0) if dist >= treshhold else 0
 
     # compares two images by cutting the image and comparing two classes, returns "distance"
     def compareImageClassificationDataOld(

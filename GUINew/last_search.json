@@ -1,1 +1,1 @@
-{"compareObjects": true, "compareWholeImages": true, "maxWeightReduction": true, "containSameObjects": false, "magnitudeCalculation": false, "minObjConf": 0.35, "minObjWeight": 0.0}
+{"compareObjects": true, "compareWholeImages": true, "maxWeightReduction": true, "containSameObjects": false, "magnitudeCalculation": true, "minObjConf": 0.35, "minObjWeight": 0.0}

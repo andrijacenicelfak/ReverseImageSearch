@@ -11,13 +11,15 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt, QCoreApplication
 from GUINew.ImagePreviewFile import ImagePreview
 
-from ImageAnalyzationModule.ImageAnalyzationFile import *
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import *
 from GUI.GUIFunctions import *
 
 IMAGE_SIZE = 200
 
 
 class ImageGrid(QScrollArea):
+    start_video_player = pyqtSignal(str, list)
+
     def __init__(self, item_size=200, text_enabled=True, loading_percent_callback=None):
         super().__init__()
         self.content = QWidget()
@@ -34,6 +36,10 @@ class ImageGrid(QScrollArea):
         self.old_resize = self.resizeEvent
         self.resizeEvent = self.on_resize
         self.loading_percent_callback = loading_percent_callback
+
+    @QtCore.pyqtSlot(str, list)
+    def start_video_player_call(self, path:str, data:list):
+        self.start_video_player.emit(path, data)
 
     def on_resize(self, event):
         self.old_resize(event)
@@ -95,22 +101,29 @@ class ImageGrid(QScrollArea):
             ip, i // self.max_collum_count, i % self.max_collum_count
         )
 
-    def add_to_grid(self, data : [tuple]):
+    def add_to_grid(self, data : [tuple]):        
         for image, desc, path in data:
-            i = self.layout_gird.count()
-            ip = ImagePreview(desc, path, image)
-            self.layout_gird.addWidget(
-                ip, i // self.max_collum_count, i % self.max_collum_count
-            )
+            video = format_if_video_path(path)
+            if video[1] is None:
+                i = self.layout_gird.count()
+                ip = ImagePreview(desc, path, image)
+                self.layout_gird.addWidget(
+                    ip, i // self.max_collum_count, i % self.max_collum_count
+                )
+            elif video[0] in self.video_dictonary:
+                self.video_dictonary[video[0]].add_frame(image, video[1])
+            else:
+                i = self.layout_gird.count()
+                ip = ImagePreview(desc, path, image, is_video=True, frame_num=video[1], video_path = video[0])
+                self.layout_gird.addWidget(
+                    ip, i // self.max_collum_count, i % self.max_collum_count
+                )
+                self.video_dictonary[video[0]] = ip
+                ip.start_video_player.connect(self.start_video_player_call)
 
-    def done_adding(self, video_dict):
 
-        while self.layout_gird.count():
-            item = self.layout_gird.takeAt(0)
-            widget = item.widget()
-            if widget:
-                norm_path, frame_num  = format_if_video_path(widget.image_path)
-
+    def done_adding(self):
+        print("Done")
 
     def add_images_mt(self, data: list[ImageData]):
         self.removeAllImages()
@@ -118,12 +131,16 @@ class ImageGrid(QScrollArea):
         self.image_adder.progress.connect(self.loading_percent_callback)
         self.image_adder.add.connect(self.add_to_grid)
         self.image_adder.done.connect(self.done_adding)
+
+        # video dictonary has the first ImagePreview
+        # video_dictonary[key] = original_image_preview
+        self.video_dictonary = dict()
+
         self.image_adder.start()
 
 
-
 class ImageAddWorker(QThread):
-    done = pyqtSignal(dict)
+    done = pyqtSignal()
     progress = pyqtSignal(int)
     add = pyqtSignal(list)
 
@@ -132,29 +149,17 @@ class ImageAddWorker(QThread):
         self.data = data
 
     def run(self):
-        video_dict = dict()
         data_len = len(self.data)
         data_emit = []
         for i, d in enumerate(self.data):
             classes = reduce((lambda a, b: a + " " + b.className), d.classes, "")
-            
-            
-            #<<<<<####################################################################
-            #TODO DODATI DICT KEY=PATH VALUE=LIST
-            px = QPixmap(format_image_path(d.orgImage))
-            
-            norm_path, frame_num  = format_if_video_path(d.orgImage)
-            
-            if norm_path in video_dict:
-                video_dict[norm_path].append(frame_num)        
+            path = format_image_path(d.orgImage)
+            px = QPixmap(path)
+            if px.isNull():
+                #TODO: Image has been deleted, delete from database
+                print("Image deleted : " + path)
                 continue
-            else:
-                video_dict[norm_path] = [frame_num]
             
-
-            # if px.isNull():
-            #     print("NIJE UCITANO : " + d.orgImage)
-            #     continue
             px = px.scaled(IMAGE_SIZE, IMAGE_SIZE)
             data_emit.append((px, f"Classes: {classes}", d.orgImage))
             if i % 5 == 0:
@@ -164,4 +169,4 @@ class ImageAddWorker(QThread):
                 self.progress.emit(int(100 * i / data_len))
         self.add.emit(data_emit)
         self.progress.emit(100)
-        self.done.emit(video_dict)#prosledi ovde dict
+        self.done.emit()

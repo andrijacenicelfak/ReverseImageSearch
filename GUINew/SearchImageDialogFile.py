@@ -7,6 +7,7 @@ from GUINew.SearchImageFile import *
 from GUINew.SearchParamsFile import SearchParams
 
 from ImageAnalyzationModule.ImageAnalyzationFile import *
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import *
 from GUI.GUIFunctions import *
 from PyQt5.QtGui import QDoubleValidator
 
@@ -20,6 +21,7 @@ class SearchImageDialog(QDialog):
         options_only=False,
     ):
         super().__init__()
+        self.seleted_object = -1
         self.setWindowTitle("Select image" if not options_only else "Settings")
         self.image_analyzation = image_analyzation
         self.has_image = False

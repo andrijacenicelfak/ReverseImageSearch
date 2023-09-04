@@ -1,7 +1,7 @@
 import sqlite3
 import pickle
 import time
-from ImageAnalyzationModule.ImageAnalyzationFile import *
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import ImageData, ImageClassificationData, BoundingBox
 from DB.Functions import *
 
 def decode_image_flag(flag):
@@ -14,11 +14,12 @@ def decode_image_flag(flag):
 class ImageDB:
     def __init__(self):
         self.cursor=""
+
     def open_connection(self):
-        self.con = sqlite3.connect("test3.db")
+        self.con = sqlite3.connect("database.db")
         self.cursor = self.con.cursor()
         try:
-            self.con = sqlite3.connect("test3.db")
+            self.con = sqlite3.connect("database.db")
             self.cursor = self.con.cursor()
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS objects (

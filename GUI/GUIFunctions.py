@@ -1,8 +1,11 @@
 import numpy as np
-from ImageAnalyzationModule.ImageAnalyzationFile import ImageData, ImageClassificationData, BoundingBox
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import ImageData, ImageClassificationData, BoundingBox
 import cv2
 import random
 from PyQt5.QtGui import QPixmap, QImage
+import os
+
+TEMP_VIDEO_FILE_PATH = os.getenv('LOCALAPPDATA') + "\\Reverse\\"
 
 random.seed(151581818)
 colors = [tuple(int(random.randrange(255)) for _ in range(3)) for _ in range(50)]
@@ -57,19 +60,12 @@ def format_if_video_path(path)->tuple:
     if paths[0].lower().endswith(('.mp4',)):
         frame_num = paths[1].split('.')[0]
         return (paths[0], frame_num)
-    return (path, None)             
-
+    return (path, None)
 
 #returns path of  either image or video frame 
 def format_image_path(path):
     paths = path.split('\\')
     new_path = path 
-
-    #PROMENI U APPDDATa
-    TEMP_VIDEO_FILE_PATH = "C:\\kf3\\"
-    
-    if len(paths) > 1:
-        if paths[-2].lower().endswith(('.mp4',)):
+    if len(paths) > 1 and paths[-2].lower().endswith(('.mp4',)):
             new_path =  TEMP_VIDEO_FILE_PATH + f"{paths[-2]}\\{paths[-1]}"
-    
     return new_path

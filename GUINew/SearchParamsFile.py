@@ -8,7 +8,7 @@ class SearchParams:
                          minObjConf = 0.5,
                          minObjWeight = 0.05,
                          selectedIndex = None,
-                         imagePath = ".\\AppImages\\noimg.jpeg"
+                         imagePath = ".\\AppImages\\noimg.png"
                          ):
         self.compareObjects = compareObjects
         self.compareWholeImages = compareWholeImages

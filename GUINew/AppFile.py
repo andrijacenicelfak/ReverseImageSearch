@@ -1,15 +1,20 @@
+import array
 from functools import reduce
 import pathlib
+import typing
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QThread
+from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler
+from PyQt5.QtGui import QIcon
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
+from GUINew.VideoPlayerFile import VideoPlayer
 from GUINew.DisplayFile import *
 from GUINew.ImageGridFile import ImageGrid
 from GUINew.SearchImageDialogFile import SearchImageDialog
 from GUINew.SearchImageFile import *
 from ImageAnalyzationModule.ImageAnalyzationFile import *
+from ImageAnalyzationModule.ImageAnalyzationDataTypes import *
 from GUI.GUIFunctions import *
 import multiprocessing as mp
 from FileSystem.FileExplorerFile import search
@@ -17,21 +22,22 @@ from FileSystem.FileExplorerFile import search
 from Video.histoDThresh import summ_video_parallel
 from GUINew.ThreadsFile import *
 import os
+from GUINew.IndexFunctions import IndexFunction
 
-TEMP_VIDEO_FILE_PATH = os.getenv('LOCALAPPDATA') + "\\Reverse"
+from ImageAnalyzationModule import Describe,Vectorize
+
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
 def handle(type, context, message):
     pass
 
 class App(QMainWindow):
-    def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB):
+
+    def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB,desc:Describe,vec:Vectorize):
         super().__init__()
-        print(TEMP_VIDEO_FILE_PATH)
+        self.video_player = None
         #
-        self.thread_manager = MyThreadManager()
-        self.num_of_processes = mp.cpu_count()
-        self.pool = mp.Pool(self.num_of_processes)
+        self.index_worker = None        
         # qInstallMessageHandler(handle)
 
         #
@@ -39,6 +45,8 @@ class App(QMainWindow):
         self.content = QWidget()
         self.image_analyzation = image_analyzation
         self.img_db = img_db
+        self.desc=desc
+        self.vec=vec
         self.main_layout = QVBoxLayout()
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
@@ -77,13 +85,16 @@ class App(QMainWindow):
         self.search_layout.setContentsMargins(0, 0, 0, 0)
 
         self.search_box = QLineEdit("", self.menu_bar)
+        self.search_box.returnPressed.connect(self.enter_search_box)
         self.search_layout.addWidget(self.search_box)
 
-        self.search_keyword_button = QPushButton("🔍", self.menu_bar)
+        self.search_keyword_button = QPushButton("", self.menu_bar)
+        self.search_keyword_button.setIcon(QIcon(".\\AppImages\\search.png"))
         self.search_keyword_button.clicked.connect(self.search_keyword_action)
         self.search_layout.addWidget(self.search_keyword_button)
 
-        self.search_image_button = QPushButton("⮹", self.menu_bar)
+        self.search_image_button = QPushButton("", self.menu_bar)
+        self.search_image_button.setIcon(QIcon(".\\AppImages\\image.png"))
         self.search_image_button.clicked.connect(self.search_image_action)
         self.search_layout.addWidget(self.search_image_button)
 
@@ -96,6 +107,7 @@ class App(QMainWindow):
         self.search_image = SearchImageView()
         self.main_layout.addWidget(self.search_image)
         self.image_grid = ImageGrid(loading_percent_callback=self.set_loading_percent)
+        self.image_grid.start_video_player.connect(self.start_video_player)
         self.main_layout.addWidget(self.image_grid)
 
         # loader
@@ -107,6 +119,9 @@ class App(QMainWindow):
         self.setCentralWidget(self.content)
 
         self.setGeometry(100, 100, 900, 900)
+
+    def enter_search_box(self):
+        self.search_keyword_action()
 
     def file_add_action(self):
         options = QFileDialog.Options()
@@ -121,6 +136,9 @@ class App(QMainWindow):
 
     def file_add_image_db(self, path, commit=False):
         image = cv2.imread(path)
+        if image is not None and not image.any() :
+            print(f"No image found : {path}")
+            return
         image_data = self.image_analyzation.getImageData(
             image,
             classesData=True,
@@ -133,6 +151,7 @@ class App(QMainWindow):
         self.img_db.addImage(image_data, commit_flag=commit)
 
     def file_add_video_db(self, path, queue, commit=False):
+        #TODO change this to use the new class for indexing
         summ_video_parallel(path, queue, self.num_of_processes, self.pool)
         i = 0
         os.makedirs(TEMP_VIDEO_FILE_PATH, exist_ok=True)  ##x
@@ -167,31 +186,18 @@ class App(QMainWindow):
         if folder_path:
             self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.thread_manager.start_thread(
-                function=self.index_folder, args=(folder_path, self.img_db)
-            )
+            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path,self.desc,self.vec)
+            self.index_worker.progress.connect(self.set_loading_percent)
+            self.index_worker.done.connect(self.set_cursor_arrow)
+            self.index_worker.start()
+            self.set_loading_percent(0)
 
-    def index_folder(self, path, img_db):
-        xD = time.time()
-        img_db.open_connection()
-
-        with mp.Manager() as manager:
-            for batch in search(path):
-                for img_path in batch:
-                    queue = manager.Queue()
-                    ext = pathlib.Path(img_path).suffix
-                    if  ext not in SUPPORTED_VIDEO_EXTENSIONS:
-                        self.file_add_image_db(img_path)
-                    else:
-                        self.file_add_video_db(img_path, queue=queue, commit=False)
-        img_db.commit_changes()
-        img_db.close_connection()
-        print(f"Total time:{time.time()-xD}")
+    def set_cursor_arrow(self):
         self.setCursor(Qt.ArrowCursor)
 
     def search_keyword_action(self):
         self.search_image.hide()
-        text = self.search_box.text()
+        text = self.search_box.text().lower()
         text_words = text.split(" ")
         text_words = list(filter(lambda x: x in dbf.model_names, text_words))
         self.img_db.open_connection()
@@ -222,9 +228,11 @@ class App(QMainWindow):
         img_data: ImageData = search_params.data
         self.search_image.show()
         self.search_image.showImage(
-            imagePath=search_params.imagePath, img_data=img_data
+            imagePath=search_params.imagePath, img_data=img_data, index=search_params.selectedIndex
         )
-        self.file_add_db(search_params.imagePath)
+        # TODO : Add logic to check if the file is in the database, and if it is not it adds it to the database
+        # self.file_add_image_db(search_params.imagePath)
+        # Maybe if there is not a 100% match add the image to the database
 
         self.img_db.open_connection()
         imgs = self.img_db.search_by_image(
@@ -249,7 +257,7 @@ class App(QMainWindow):
                 confidenceCalculation=search_params.magnitudeCalculation,
                 magnitudeCalculation=search_params.magnitudeCalculation,
                 minObjConf=search_params.minObjConf,
-                minObjWeight=search_params.minObjWeightresi,
+                minObjWeight=search_params.minObjWeight,
                 selectedIndex=search_params.selectedIndex,
             )
             image_list.append(DisplayItem(img.orgImage, conf, img))
@@ -266,7 +274,7 @@ class App(QMainWindow):
     def set_loading_percent(self, percent):
         if percent == 0:
             self.loading_percent_widget.show()
-        if percent > 98:
+        if percent >= 100:
             self.loading_percent_widget.hide()
         self.loading_percent_widget.setValue(int(percent))
 
@@ -276,3 +284,13 @@ class App(QMainWindow):
 
     def file_exit_action(self):
         QApplication.quit()
+    
+    def start_video_player(self, video_path, data):
+        # print(data)
+        if self.video_player :
+            self.video_player.closePlayer()
+            self.video_player.deleteLater()
+        self.video_player = VideoPlayer(fileName=video_path, data=data)
+        self.video_player.setWindowTitle("Player")
+        self.video_player.resize(1024, 960)
+        self.video_player.show() 

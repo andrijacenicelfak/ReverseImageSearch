@@ -6,9 +6,13 @@ import sys
 
 from DB.SqliteDB import ImageDB
 from GUINew.AppFile import App
-from ImageAnalyzationModule.ConvolutionalModels import AutoEncoderDecoderM
+from ImageAnalyzationModule.ConvolutionalModels import *
 
 from ImageAnalyzationModule.ImageAnalyzationFile import *
+
+from ImageAnalyzationModule.Describe import Describe
+from ImageAnalyzationModule.Vectorize import Vectorize
+
 from GUI.GUIFunctions import *
 
 if __name__ == "__main__":
@@ -16,11 +20,11 @@ if __name__ == "__main__":
     ai = ImageAnalyzation(
         "yolov8s.pt",
         device="cuda",
-        analyzationType=AnalyzationType.CoderDecoder,
-        aedType=AutoEncoderDecoderM,
-        coderDecoderModel="1M-103",
+        aedType=AutoEncoderDecoderS, coderDecoderModel="3S-NF-29", normalization=False
     )
     db = ImageDB()
-    window = App(image_analyzation=ai, img_db=db)
+    desc=Describe()
+    vec=Vectorize()
+    window = App(image_analyzation=ai, img_db=db,vec=vec,desc=desc)
     window.show()
     sys.exit(app.exec_())

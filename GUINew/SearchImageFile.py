@@ -28,7 +28,7 @@ class SearchImageView(QWidget):
         self.setLayout(self.layout_form)
         self.layout_form.addWidget(self.content)
 
-    def showImage(self, imagePath: str, img_data: ImageData = None):
+    def showImage(self, imagePath: str, img_data: ImageData = None, index=None):
         # Image ------------------------------------------
         if self.image:
             self.content_layout.removeWidget(self.image)
@@ -39,7 +39,7 @@ class SearchImageView(QWidget):
         img = img_data.orgImage
         self.org_img = numpy_to_pixmap(img).scaled(self.image_width, self.image_height)
         self.bb_img = numpy_to_pixmap(
-            drawClasses(img_data, img.copy(), fontSize=img.shape[0] / 200)
+            drawClasses(img_data, img.copy(), fontSize=img.shape[0] / 200, index=index)
         ).scaled(self.image_width, self.image_height)
         self.image.setPixmap(self.org_img)
         self.content_layout.addWidget(self.image)
