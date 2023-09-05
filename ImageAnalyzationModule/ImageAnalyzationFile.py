@@ -507,7 +507,7 @@ class ImageAnalyzation:
                 [key for key in weights1.keys()], key=lambda a: weights1[a]
             )
             if maxWeightObj not in map(lambda a: a.className, imgData2.classes):
-                objectComparison *= 1e-6
+                objectComparison *= 1e-12
         return objectComparison
 
     # compares the images by calculating the max object matching and similarity between images

@@ -189,12 +189,7 @@ class IndexFunction(QThread):
         end_time = time.time()
         print("Time to index : %.2fs" % (end_time - start_time,))
 
-        start_time = time.time()
-
         self.database.commit_changes()
         self.database.close_connection()
-
-        end_time = time.time()
-        print("Time to commit to db : %.2fs" % (end_time - start_time,))
 
         self.done.emit()

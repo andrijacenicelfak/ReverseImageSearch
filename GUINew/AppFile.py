@@ -285,7 +285,7 @@ class App(QMainWindow):
         self.img_db.close_connection()
 
         image_list = DisplayList()
-        print(search_params.get_dict())
+        # print(search_params.get_dict())
         for img in imgs:
             conf = self.image_analyzation.compareImages(
                 imgData1=img_data,
