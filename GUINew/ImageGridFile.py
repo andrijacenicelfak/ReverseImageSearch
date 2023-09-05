@@ -25,9 +25,10 @@ class ImageGrid(QScrollArea):
         self.content = QWidget()
         self.layout_gird = QGridLayout()
         self.layout_gird.setSpacing(0)
-        self.layout_gird.setContentsMargins(0, 0, 0, 0)
+        self.layout_gird.setContentsMargins(2, 2, 2, 2)
         self.text_enabled = text_enabled
-        self.item_size = item_size + (int(item_size * 2 / 3) if text_enabled else 0)
+        self.item_size = item_size + 4
+        self.item_height = item_size + (int(item_size * 2 / 3) if text_enabled else 0) + 4
         self.max_collum_count = max(self.content.width() // self.item_size, 1)
 
         self.content.setLayout(self.layout_gird)
@@ -102,11 +103,11 @@ class ImageGrid(QScrollArea):
         )
 
     def add_to_grid(self, data : [tuple]):        
-        for image, desc, path in data:
+        for image, desc, path, classes in data:
             video = format_if_video_path(path)
             if video[1] is None:
                 i = self.layout_gird.count()
-                ip = ImagePreview(desc, path, image)
+                ip = ImagePreview(desc, path, image, classes = classes)
                 self.layout_gird.addWidget(
                     ip, i // self.max_collum_count, i % self.max_collum_count
                 )
@@ -114,7 +115,7 @@ class ImageGrid(QScrollArea):
                 self.video_dictonary[video[0]].add_frame(image, video[1])
             else:
                 i = self.layout_gird.count()
-                ip = ImagePreview(desc, path, image, is_video=True, frame_num=video[1], video_path = video[0])
+                ip = ImagePreview(desc, path, image, is_video=True, frame_num=video[1], video_path = video[0], classes = classes)
                 self.layout_gird.addWidget(
                     ip, i // self.max_collum_count, i % self.max_collum_count
                 )
@@ -160,8 +161,8 @@ class ImageAddWorker(QThread):
                 print("Image deleted : " + path)
                 continue
             
-            px = px.scaled(IMAGE_SIZE, IMAGE_SIZE)
-            data_emit.append((px, d.description, d.orgImage))
+            px = px.scaled(IMAGE_SIZE, IMAGE_SIZE, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
+            data_emit.append((px, d.description, d.orgImage, classes))
             if i % 5 == 0:
                 self.add.emit(data_emit)
                 data_emit = []

@@ -20,45 +20,64 @@ class ImagePreview(QWidget):
         width=200,
         height=200,
         text_enabled=True,
-        textWidth=150,
+        textHeight=150,
         is_video = False,
         frame_num = -1,
-        video_path = None
+        video_path = None,
+        classes : str = ""
     ) -> None:
         super().__init__()
+
         self.layout_form = QFormLayout()
         self.image_path = image_path
         self.content = QWidget()
-        self.content_layout = QGridLayout()
+        self.content.setStyleSheet('''
+            QWidget:hover{
+                background-color: #9ccfff;
+            }
+        ''')
+        self.content_layout = QVBoxLayout()
         self.content_layout.setSpacing(0)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
 
-        if text_enabled:
-            self.lbl = QLabel(parent=self, text=description)
-            self.lbl.setMaximumSize(textWidth, height)
-            self.lbl.setWordWrap(True)
-            self.content_layout.addWidget(self.lbl, 0, 1)
-
         self.image = QLabel(parent=self)
+        self.image.setStyleSheet('''
+            QLabel{
+                background-color: #000000;
+            }
+            QLabel:hover{
+                background-color: #21476b;
+            }
+        ''')
+        self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image.setMaximumSize(width, height)
 
         if px_image is not None:
             self.px = px_image
         elif image_path is not None:
-            self.px = QPixmap(format_image_path(image_path)).scaled(width, height)
+            self.px = QPixmap(format_image_path(image_path)).scaled(width, height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
 
         self.image.setPixmap(self.px)
-        self.content_layout.addWidget(self.image, 0, 0)
+        self.image.setMinimumSize(int(width), int(height))
+        self.image.setMaximumSize(int(width), int(height))
+        self.content_layout.addWidget(self.image)
         self.content.setLayout(self.content_layout)
 
         self.layout_form.addWidget(self.content)
         self.layout_form.setSpacing(0)
-        self.layout_form.setContentsMargins(0, 0, 0, 0)
+        self.layout_form.setContentsMargins(0,0,0,0)
         self.setLayout(self.layout_form)
         self.setToolTip(description)
+        
+        if text_enabled:
+            self.lbl = QLabel(parent=self, text=description)
+            self.lbl.setStyleSheet("")
+            self.lbl.setMaximumSize(width, textHeight)
+            self.lbl.setWordWrap(True)
+            self.content_layout.addWidget(self.lbl)
 
-        self.setMaximumSize(width + textWidth if text_enabled else 0, height)
-        self.setMinimumSize(width + textWidth if text_enabled else 0, height)
+        self.setMaximumSize(width, height + (textHeight if text_enabled else 0))
+        self.setMinimumSize(width, height + (textHeight if text_enabled else 0))
 
         self.is_video = is_video
         self.video_path = video_path

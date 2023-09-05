@@ -174,7 +174,8 @@ class VideoPlayerItem(QWidget):
         super().__init__()
         self.frame_num = frame_num
         self.image_label = QLabel()
-        self.image_label.setPixmap(image.scaled(size[0], size[1]))
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setPixmap(image.scaled(size[0] - 5, size[1] - 5))
         self.main_layot = QHBoxLayout()
         self.main_layot.addWidget(self.image_label)
         self.setLayout(self.main_layot)
@@ -184,6 +185,11 @@ class VideoPlayerItem(QWidget):
         self.setMinimumHeight(size[1])
         self.mouseDoubleClickEvent = self.double_click_event
         self.setContentsMargins(0,0,0,0)
+        self.setStyleSheet('''
+            QLabel:hover{
+                border: 5px solid #21476b;
+            }
+        ''')
     
     def double_click_event(self, event):
         self.clicked.emit(int(self.frame_num))

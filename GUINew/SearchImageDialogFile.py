@@ -39,8 +39,10 @@ class SearchImageDialog(QDialog):
             self.image_preview = QWidget()
 
             self.image_label = QLabel(parent=self.image_preview)
+            self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.image_label.setStyleSheet("background-color: black")
             self.image = QPixmap(self.search_params.imagePath).scaled(
-                self.image_width, self.image_height
+                self.image_width, self.image_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation
             )
             self.image_label.setPixmap(self.image)
             self.image_label.setMaximumSize(self.image_width, self.image_height)
@@ -227,7 +229,9 @@ class SearchImageDialog(QDialog):
             index=self.search_params.selectedIndex,
         )
         self.bb_image_px = numpy_to_pixmap(self.bb_image)
-        self.image = self.bb_image_px.scaled(self.image_width, self.image_height)
+        self.image = self.bb_image_px.scaled(self.image_width, self.image_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setStyleSheet("background-color: black")
         self.image_label.setPixmap(self.image)
 
     def selection_change(self):

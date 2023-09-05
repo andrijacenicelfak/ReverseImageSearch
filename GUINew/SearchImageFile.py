@@ -1,3 +1,4 @@
+from functools import reduce
 from PyQt5.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -6,6 +7,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QCheckBox,
 )
+from PyQt5.QtCore import Qt
 
 from PyQt5.QtWidgets import QWidget
 
@@ -34,13 +36,16 @@ class SearchImageView(QWidget):
             self.content_layout.removeWidget(self.image)
             self.image.deleteLater()
         self.image = QLabel(parent=self)
+        self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image.setMaximumSize(self.image_width, self.image_height)
+        self.image.setMinimumSize(self.image_width, self.image_height)
+        self.image.setStyleSheet("background-color: black")
         # self.px = QPixmap(imagePath).scaled(width, height)
         img = img_data.orgImage
-        self.org_img = numpy_to_pixmap(img).scaled(self.image_width, self.image_height)
+        self.org_img = numpy_to_pixmap(img).scaled(self.image_width, self.image_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
         self.bb_img = numpy_to_pixmap(
             drawClasses(img_data, img.copy(), fontSize=img.shape[0] / 200, index=index)
-        ).scaled(self.image_width, self.image_height)
+        ).scaled(self.image_width, self.image_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
         self.image.setPixmap(self.org_img)
         self.content_layout.addWidget(self.image)
 
@@ -56,8 +61,9 @@ class SearchImageView(QWidget):
         self.path_lbl.setWordWrap(True)
         self.content_desc_layout.addWidget(self.path_lbl)
 
+        text = reduce(lambda a,b : f"{a} {b}", set(map(lambda x: x.className, img_data.classes)), "")
         self.objects_lbl = QLabel(
-            text=f"Objects : {list(map(lambda x: x.className, img_data.classes))}"
+            text=f"Objects : {text}\nDescription:{img_data.description}"
         )
         self.objects_lbl.setWordWrap(True)
         self.content_desc_layout.addWidget(self.objects_lbl)
