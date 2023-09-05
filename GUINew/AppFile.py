@@ -303,7 +303,6 @@ class App(QMainWindow):
 
             if search_params.textContext:
                 comp_2 = self.vec.compare_vectors(img_data.vector, img.vector)
-                print(comp_2)
                 conf = (1 - search_params.textContextWeight) * conf + search_params.textContextWeight * comp_2
 
             image_list.append(DisplayItem(img.orgImage, conf, img))
