@@ -4,7 +4,16 @@ import pathlib
 import typing
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot, qInstallMessageHandler, QtMsgType, QMessageLogContext
+from PyQt5.QtCore import (
+    QObject,
+    Qt,
+    QThread,
+    pyqtSignal,
+    pyqtSlot,
+    qInstallMessageHandler,
+    QtMsgType,
+    QMessageLogContext,
+)
 from PyQt5.QtGui import QIcon
 from DB.SqliteDB import ImageDB
 import DB.Functions as dbf
@@ -29,18 +38,26 @@ from ImageAnalyzationModule.Describe import Describe
 
 VIDEO_THUMBNAIL_SIZE = 300
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
-def handle(type : QtMsgType, context : QMessageLogContext, message : str):
+
+
+def handle(type: QtMsgType, context: QMessageLogContext, message: str):
     if context.category == "qt.gui.icc":
         return
     print(f"type : {type}, category : {context.category}, message : {message}")
 
-class App(QMainWindow):
 
-    def __init__(self, image_analyzation: ImageAnalyzation, img_db: ImageDB,desc:Describe,vec:Vectorize):
+class App(QMainWindow):
+    def __init__(
+        self,
+        image_analyzation: ImageAnalyzation,
+        img_db: ImageDB,
+        desc: Describe,
+        vec: Vectorize,
+    ):
         super().__init__()
         self.video_player = None
         #
-        self.index_worker = None        
+        self.index_worker = None
         qInstallMessageHandler(handle)
 
         #
@@ -48,8 +65,8 @@ class App(QMainWindow):
         self.content = QWidget()
         self.image_analyzation = image_analyzation
         self.img_db = img_db
-        self.desc=desc
-        self.vec=vec
+        self.desc = desc
+        self.vec = vec
         self.main_layout = QVBoxLayout()
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
@@ -139,7 +156,7 @@ class App(QMainWindow):
 
     def file_add_image_db(self, path, commit=False):
         image = cv2.imread(path)
-        if image is not None and not image.any() :
+        if image is not None and not image.any():
             print(f"No image found : {path}")
             return
         image_data = self.image_analyzation.getImageData(
@@ -154,7 +171,7 @@ class App(QMainWindow):
         self.img_db.addImage(image_data, commit_flag=commit)
 
     def file_add_video_db(self, path, queue, commit=False):
-        #TODO change this to use the new class for indexing
+        # TODO change this to use the new class for indexing
         summ_video_parallel(path, queue, self.num_of_processes, self.pool)
         i = 0
         os.makedirs(TEMP_VIDEO_FILE_PATH, exist_ok=True)  ##x
@@ -173,11 +190,19 @@ class App(QMainWindow):
                 returnOriginalImage=False,
                 classesConfidence=0.35,
             )
-            fake_image_path =  TEMP_VIDEO_FILE_PATH + f"\\{video_name}\\{str(frame_data.frame_number)}.png"  ##x
-            
+            fake_image_path = (
+                TEMP_VIDEO_FILE_PATH
+                + f"\\{video_name}\\{str(frame_data.frame_number)}.png"
+            )  ##x
+
             real_video_path_plus_image = path + f"\\{str(frame_data.frame_number)}.png"
-            os.makedirs(TEMP_VIDEO_FILE_PATH +f"\\{video_name}", exist_ok=True)  ##x
-            cv2.imwrite(fake_image_path, cv2.resize(frame_data.frame, (VIDEO_THUMBNAIL_SIZE, VIDEO_THUMBNAIL_SIZE)))  ##x
+            os.makedirs(TEMP_VIDEO_FILE_PATH + f"\\{video_name}", exist_ok=True)  ##x
+            cv2.imwrite(
+                fake_image_path,
+                cv2.resize(
+                    frame_data.frame, (VIDEO_THUMBNAIL_SIZE, VIDEO_THUMBNAIL_SIZE)
+                ),
+            )  ##x
             image_data.orgImage = real_video_path_plus_image  ##x
             self.img_db.addImage(image_data, commit_flag=commit)
 
@@ -189,7 +214,15 @@ class App(QMainWindow):
         if folder_path:
             self.selected_folder_path = folder_path
             self.setCursor(Qt.WaitCursor)
-            self.index_worker = IndexFunction(self.image_analyzation, self.img_db, os.cpu_count(), folder_path, os.cpu_count(), self.desc, self.vec)
+            self.index_worker = IndexFunction(
+                self.image_analyzation,
+                self.img_db,
+                os.cpu_count(),
+                folder_path,
+                os.cpu_count(),
+                self.desc,
+                self.vec,
+            )
             self.index_worker.progress.connect(self.set_loading_percent)
             self.index_worker.done.connect(self.set_cursor_arrow)
             self.index_worker.start()
@@ -229,11 +262,13 @@ class App(QMainWindow):
 
         self.setCursor(Qt.WaitCursor)
         img_data: ImageData = search_params.data
-        img_data.description=self.desc.caption(img_data.orgImage)
-        img_data.vector=self.vec.infer_vector(img_data.description)
+        img_data.description = self.desc.caption(img_data.orgImage)
+        img_data.vector = self.vec.infer_vector(img_data.description)
         self.search_image.show()
         self.search_image.showImage(
-            imagePath=search_params.imagePath, img_data=img_data, index=search_params.selectedIndex
+            imagePath=search_params.imagePath,
+            img_data=img_data,
+            index=search_params.selectedIndex,
         )
         # TODO : Add logic to check if the file is in the database, and if it is not it adds it to the database
         # self.file_add_image_db(search_params.imagePath)
@@ -250,7 +285,7 @@ class App(QMainWindow):
         self.img_db.close_connection()
 
         image_list = DisplayList()
-
+        print(search_params.get_dict())
         for img in imgs:
             conf = self.image_analyzation.compareImages(
                 imgData1=img_data,
@@ -266,8 +301,12 @@ class App(QMainWindow):
                 selectedIndex=search_params.selectedIndex,
             )
 
-            new_conf=0.4*conf+0.6*self.vec.compare_vectors(img_data.vector,img.vector)
-            image_list.append(DisplayItem(img.orgImage, new_conf, img))
+            if search_params.textContext:
+                comp_2 = self.vec.compare_vectors(img_data.vector, img.vector)
+                print(comp_2)
+                conf = (1 - search_params.textContextWeight) * conf + search_params.textContextWeight * comp_2
+
+            image_list.append(DisplayItem(img.orgImage, conf, img))
 
         av = image_list.average()
         image_list.filter_sort(av)
@@ -291,13 +330,13 @@ class App(QMainWindow):
 
     def file_exit_action(self):
         QApplication.quit()
-    
+
     def start_video_player(self, video_path, data):
         # print(data)
-        if self.video_player :
+        if self.video_player:
             self.video_player.closePlayer()
             self.video_player.deleteLater()
         self.video_player = VideoPlayer(fileName=video_path, data=data)
         self.video_player.setWindowTitle("Player")
         self.video_player.resize(1024, 960)
-        self.video_player.show() 
+        self.video_player.show()

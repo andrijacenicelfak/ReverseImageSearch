@@ -161,7 +161,7 @@ class ImageAddWorker(QThread):
                 continue
             
             px = px.scaled(IMAGE_SIZE, IMAGE_SIZE)
-            data_emit.append((px, f"Classes: {classes}", d.orgImage))
+            data_emit.append((px, d.description, d.orgImage))
             if i % 5 == 0:
                 self.add.emit(data_emit)
                 data_emit = []
