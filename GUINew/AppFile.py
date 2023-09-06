@@ -170,42 +170,6 @@ class App(QMainWindow):
         image_data.orgImage = path
         self.img_db.addImage(image_data, commit_flag=commit)
 
-    def file_add_video_db(self, path, queue, commit=False):
-        # TODO change this to use the new class for indexing
-        summ_video_parallel(path, queue, self.num_of_processes, self.pool)
-        i = 0
-        os.makedirs(TEMP_VIDEO_FILE_PATH, exist_ok=True)  ##x
-        while i != self.num_of_processes:
-            frame_data = queue.get()
-            if frame_data is None:
-                i += 1
-                continue
-
-            video_name = os.path.basename(path)  ##x
-            image_data = self.image_analyzation.getImageData(
-                frame_data.frame,
-                classesData=True,
-                imageFeatures=True,
-                objectsFeatures=True,
-                returnOriginalImage=False,
-                classesConfidence=0.35,
-            )
-            fake_image_path = (
-                TEMP_VIDEO_FILE_PATH
-                + f"\\{video_name}\\{str(frame_data.frame_number)}.png"
-            )  ##x
-
-            real_video_path_plus_image = path + f"\\{str(frame_data.frame_number)}.png"
-            os.makedirs(TEMP_VIDEO_FILE_PATH + f"\\{video_name}", exist_ok=True)  ##x
-            cv2.imwrite(
-                fake_image_path,
-                cv2.resize(
-                    frame_data.frame, (VIDEO_THUMBNAIL_SIZE, VIDEO_THUMBNAIL_SIZE)
-                ),
-            )  ##x
-            image_data.orgImage = real_video_path_plus_image  ##x
-            self.img_db.addImage(image_data, commit_flag=commit)
-
     def file_add_folder_action(self):
         options = QFileDialog.Options()
         folder_path = QFileDialog.getExistingDirectory(
@@ -219,7 +183,7 @@ class App(QMainWindow):
                 self.img_db,
                 os.cpu_count(),
                 folder_path,
-                os.cpu_count(),
+                2,
                 self.desc,
                 self.vec,
             )
@@ -286,6 +250,7 @@ class App(QMainWindow):
 
         image_list = DisplayList()
         # print(search_params.get_dict())
+        self.set_loading_percent(0)
         for img in imgs:
             conf = self.image_analyzation.compareImages(
                 imgData1=img_data,

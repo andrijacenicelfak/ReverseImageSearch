@@ -61,7 +61,7 @@ class ImagePreview(QWidget):
         self.layout_form.setSpacing(0)
         self.layout_form.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout_form)
-        self.setToolTip(description)
+        self.setToolTip(f"Decription : {description}\nClasses : {classes}")
 
         if text_enabled:
             self.lbl = QLabel(parent=self, text=description)

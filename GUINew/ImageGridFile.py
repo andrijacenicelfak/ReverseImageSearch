@@ -153,7 +153,10 @@ class ImageAddWorker(QThread):
         data_len = len(self.data)
         data_emit = []
         for i, d in enumerate(self.data):
-            classes = reduce((lambda a, b: a + " " + b.className), d.classes, "")
+            classesSet = set()
+            for c in d.classes:
+                classesSet.add(c.className)
+            classes = reduce((lambda a, b: a + " " + b), classesSet, "")
             path = format_image_path(d.orgImage)
             px = QPixmap(path)
             if px.isNull():

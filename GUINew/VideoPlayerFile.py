@@ -1,4 +1,5 @@
 import os
+import subprocess
 from PyQt5.QtGui import *
 from PyQt5.QtCore import QDir, Qt, QUrl, QSize, QPoint, pyqtSignal
 import PyQt5.QtCore as QtCore
@@ -102,7 +103,8 @@ class VideoPlayer(QWidget):
         self.resize_frames(None)
 
     def show_in_explorer(self):
-        os.startfile(self.file_folder_path)
+        subprocess.Popen(['explorer.exe', '/select,', os.path.normpath(self.file_name)])
+        # os.startfile(self.file_folder_path)
 
     @QtCore.pyqtSlot(int)
     def item_click_position_change(self, frame_num: int):
@@ -133,20 +135,6 @@ class VideoPlayer(QWidget):
             self.content_layout.addWidget(
                 widget, i // self.collum_number, i % self.collum_number
             )
-
-    def abrir(self):
-        fileName, _ = QFileDialog.getOpenFileName(
-            self,
-            "Selecciona los mediose",
-            ".",
-            "Video Files (*.mp4 *.flv *.ts *.mts *.avi)",
-        )
-
-        if fileName != "":
-            self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
-            self.playButton.setEnabled(True)
-            self.statusBar.showMessage(fileName)
-            self.play()
 
     def play(self):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
