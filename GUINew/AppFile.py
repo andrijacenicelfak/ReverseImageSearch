@@ -199,10 +199,10 @@ class App(QMainWindow):
     def search_keyword_action(self):
         self.search_image.hide()
         text = self.search_box.text().lower()
-        text_words = text.split(" ")
-        text_words = list(filter(lambda x: x in dbf.model_names, text_words))
+        # text_words = text.split(" ")
+        # text_words = list(filter(lambda x: x in dbf.model_names, text_words))
         self.img_db.open_connection()
-        imgs = self.img_db.search_by_image(text_words)
+        imgs = self.img_db.search_by_caption(self.vec.infer_vector(text))
         self.img_db.close_connection()
 
         imgs_display = DisplayList()

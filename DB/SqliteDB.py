@@ -1,6 +1,7 @@
 import sqlite3
 import pickle
 import time
+import numpy as np
 from ImageAnalyzationModule.ImageAnalyzationDataTypes import ImageData, ImageClassificationData, BoundingBox
 from DB.Functions import *
 
@@ -10,7 +11,19 @@ def decode_image_flag(flag):
         if flag & (2 ** bit_position):
             decoded_terms.append(term)
     return decoded_terms
-  
+
+def cosine_similarity(vec1, vec2):
+    return np.dot(vec1,vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2))
+
+def cosine_similarity_sql(vec1,vec2):
+    try:
+        vec1 = pickle.loads(vec1)
+        vec2 = pickle.loads(vec2)
+        cosine_sim =  np.dot(vec1,vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2))
+        return str(cosine_sim) 
+    except Exception as err:
+        print(err)
+
 class ImageDB:
     def __init__(self):
         self.cursor=""
@@ -126,6 +139,29 @@ class ImageDB:
                 
             image_objects[img_id].classes.append(ImageClassificationData(class_name,None,pickle.loads(obj_features),weight, conf=conf))
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
+    
+    def search_by_caption(self, caption_vector):
+        print("TEST SEARCH_BY_CAPTIOn")
+        self.con.create_function("cosine_sim", 2, cosine_similarity_sql)
+        self.cursor.execute("""
+                    SELECT i.*, o.* FROM images i
+                    JOIN objects o ON i.id = o.image_id
+                    WHERE CAST(cosine_sim(i.caption_vec, ?) AS REAL) > CAST(0.5 AS REAL)
+                """, (pickle.dumps(caption_vector), ))
+
+        rows = self.cursor.fetchall()        
+        
+        image_objects  = {}
+        for row in rows:
+            img_id, img_path, flag0, flag1, img_features, caption_vec, caption, obj_id, _, class_name, obj_features, weight, conf= row
+            if img_id not in image_objects:
+                image_objects[img_id] = ImageData(img_path, [], pickle.loads(img_features), pickle.loads(caption_vec), caption)
+                
+            image_objects[img_id].classes.append(ImageClassificationData(class_name,None,pickle.loads(obj_features), weight, conf=conf))
+
+        image_objects_sorted =  {key: value for key, value in sorted(image_objects.items(), key = lambda item: cosine_similarity(item[1].vector, caption_vector), reverse=True)}
+        print(f"IMAGE NUMBER LENGTH: {len(image_objects_sorted.keys())}")
+        return image_objects.values()
     
     def close_connection(self):
         self.cursor.close()
