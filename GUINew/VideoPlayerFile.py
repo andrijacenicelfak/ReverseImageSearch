@@ -1,5 +1,5 @@
 import os
-from PyQt5.QtGui import QIcon, QFont, QPixmap
+from PyQt5.QtGui import *
 from PyQt5.QtCore import QDir, Qt, QUrl, QSize, QPoint, pyqtSignal
 import PyQt5.QtCore as QtCore
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
@@ -90,7 +90,7 @@ class VideoPlayer(QWidget):
         self.mediaPlayer.error.connect(self.handleError)
         self.statusBar.showMessage("Ready")
 
-        self.file_name= fileName
+        self.file_name = fileName
         self.file_folder_path = os.path.dirname(fileName)
         print(self.file_folder_path)
         if fileName != "":
@@ -99,16 +99,19 @@ class VideoPlayer(QWidget):
             self.statusBar.showMessage(fileName)
             self.play()
         self.item_click_position_change(int(data[0][1]))
+        self.resize_frames(None)
 
     def show_in_explorer(self):
         os.startfile(self.file_folder_path)
-        
+
     @QtCore.pyqtSlot(int)
     def item_click_position_change(self, frame_num: int):
         self.mediaPlayer.setPosition((int(frame_num) // 30) * 1000)
 
     def resize_frames(self, event):
-        self.old_resize_frames(event)
+        if event is not None:
+            self.old_resize_frames(event)
+            
         self.content_frames.setMinimumWidth(self.scroll_area.width())
         old_collum = self.collum_number
         self.collum_number = max(self.scroll_area.width() // self.item_size, 1)
@@ -195,7 +198,14 @@ class VideoPlayerItem(QWidget):
         self.frame_num = frame_num
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setPixmap(image.scaled(size[0] - 5, size[1] - 5))
+        self.image = image.scaled(
+            size[0],
+            size[1],
+            aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+            transformMode=Qt.TransformationMode.FastTransformation,
+        )
+        self.image_label.setPixmap(self.image)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.main_layot = QHBoxLayout()
         self.main_layot.addWidget(self.image_label)
         self.setLayout(self.main_layot)
@@ -205,13 +215,23 @@ class VideoPlayerItem(QWidget):
         self.setMinimumHeight(size[1])
         self.mouseDoubleClickEvent = self.double_click_event
         self.setContentsMargins(0, 0, 0, 0)
-        self.setStyleSheet(
-            """
-            QLabel:hover{
-                border: 5px solid #21476b;
-            }
-        """
-        )
+
+    def enterEvent(self, a0):
+        super().enterEvent(a0)
+        color = QColor(0x21, 0x47, 0x6B, 120)
+        mod_px = self.image.copy()
+        painter = QPainter(mod_px)
+        w, h = mod_px.width(), mod_px.height()
+        painter.fillRect(0, 0, w, h, color)
+        painter.end()
+        self.image_label.setPixmap(mod_px)
+        self.image_label.setStyleSheet("background-color: #21476b;")
+
+    def leaveEvent(self, a0) -> None:
+        super().leaveEvent(a0)
+        self.setStyleSheet("background-color: #EFEFEF;")
+        self.image_label.setStyleSheet("background-color: #000000;")
+        self.image_label.setPixmap(self.image)
 
     def double_click_event(self, event):
         self.clicked.emit(int(self.frame_num))

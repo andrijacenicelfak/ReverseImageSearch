@@ -23,8 +23,6 @@ pip install git+https://github.com/huggingface/transformers
 
 pip install gdown
 
-pip install pyqtdarktheme
-
 ### Instaling with conda
 conda install -c conda-forge opencv
 
@@ -43,8 +41,6 @@ pip install gensim
 pip install git+https://github.com/huggingface/transformers
 
 pip install gdown
-
-pip install pyqtdarktheme
 
 ### Install codecs
 

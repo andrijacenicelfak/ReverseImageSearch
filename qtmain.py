@@ -17,19 +17,9 @@ from GUI.GUIFunctions import *
 
 HAS_THEME = False
 
-try:
-    import qdarktheme
-    HAS_THEME = True
-except ImportError as e:
-    pass 
-
 if __name__ == "__main__":
-    if HAS_THEME:
-        qdarktheme.enable_hi_dpi()
         
     app = QApplication(sys.argv)
-    if HAS_THEME:
-        qdarktheme.setup_theme("light")
 
     ai = ImageAnalyzation(
         "yolov8s.pt",

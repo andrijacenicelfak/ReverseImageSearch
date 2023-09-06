@@ -36,7 +36,7 @@ from GUINew.IndexFunctions import IndexFunction
 from ImageAnalyzationModule.Vectorize import Vectorize
 from ImageAnalyzationModule.Describe import Describe
 
-VIDEO_THUMBNAIL_SIZE = 300
+VIDEO_THUMBNAIL_SIZE = 200
 SUPPORTED_VIDEO_EXTENSIONS = (".mp4", ".avi")
 
 
@@ -138,7 +138,7 @@ class App(QMainWindow):
         self.content.setLayout(self.main_layout)
         self.setCentralWidget(self.content)
 
-        self.setGeometry(100, 100, 900, 900)
+        self.setGeometry(100, 100, 800, 800)
 
     def enter_search_box(self):
         self.search_keyword_action()
@@ -337,5 +337,5 @@ class App(QMainWindow):
             self.video_player.deleteLater()
         self.video_player = VideoPlayer(fileName=video_path, data=data)
         self.video_player.setWindowTitle("Player")
-        self.video_player.resize(1024, 960)
+        self.video_player.resize(800, 800)
         self.video_player.show()
