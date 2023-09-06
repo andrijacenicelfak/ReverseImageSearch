@@ -15,7 +15,7 @@ from GUI.GUIFunctions import *
 
 
 class SearchImageView(QWidget):
-    def __init__(self, width=400, height=400) -> None:
+    def __init__(self, width=300, height=300) -> None:
         super().__init__()
         self.image_width = width
         self.image_height = height

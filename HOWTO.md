@@ -2,6 +2,29 @@
 conda create --name app python=3.11 
 conda activate app
 
+
+### Instaling with pip (recommended)
+
+pip install opencv-python
+
+<b> Note </b>: Installing torch using the command on the pytorch website : [pytorch](https://pytorch.org/)
+
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+pip install ultralytics
+
+<b>Note</b> : Maybe not necessary
+
+pip install PyQt5
+
+pip install gensim
+
+pip install git+https://github.com/huggingface/transformers
+
+pip install gdown
+
+pip install pyqtdarktheme
+
 ### Instaling with conda
 conda install -c conda-forge opencv
 
@@ -21,29 +44,7 @@ pip install git+https://github.com/huggingface/transformers
 
 pip install gdown
 
-
-### Instaling with pip (recommended)
-
-pip install opencv-python
-
-<b> Note </b>: Installing torch using the command on the pytorch website : [pytorch](https://pytorch.org/)
-
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-pip install ultralytics
-
-pip install gensim
-
-<b>Note</b> : Maybe not necessary
-
-pip install PyQt5
-
-pip install gensim
-
-pip install git+https://github.com/huggingface/transformers
-
-pip install gdown
-
+pip install pyqtdarktheme
 
 ### Install codecs
 

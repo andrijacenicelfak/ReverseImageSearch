@@ -1,3 +1,4 @@
+import os
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtCore import QDir, Qt, QUrl, QSize, QPoint, pyqtSignal
 import PyQt5.QtCore as QtCore
@@ -25,6 +26,13 @@ class VideoPlayer(QWidget):
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.playButton.clicked.connect(self.play)
 
+        self.open_folder = QPushButton()
+        self.open_folder.setEnabled(True)
+        self.open_folder.setFixedHeight(24)
+        self.open_folder.setIconSize(btnSize)
+        self.open_folder.setIcon(self.style().standardIcon(QStyle.SP_DirOpenIcon))
+        self.open_folder.clicked.connect(self.show_in_explorer)
+
         self.positionSlider = QSlider(Qt.Horizontal)
         self.positionSlider.setRange(0, 0)
         self.positionSlider.sliderMoved.connect(self.setPosition)
@@ -32,12 +40,13 @@ class VideoPlayer(QWidget):
 
         self.statusBar = QStatusBar()
         self.statusBar.setFont(QFont("Noto Sans", 7))
-        self.statusBar.setFixedHeight(14)
+        self.statusBar.setFixedHeight(20)
 
         controlLayout = QHBoxLayout()
         controlLayout.setContentsMargins(0, 0, 0, 0)
         controlLayout.addWidget(self.playButton)
         controlLayout.addWidget(self.positionSlider)
+        controlLayout.addWidget(self.open_folder)
 
         # Adding all the video frames
 
@@ -81,6 +90,9 @@ class VideoPlayer(QWidget):
         self.mediaPlayer.error.connect(self.handleError)
         self.statusBar.showMessage("Ready")
 
+        self.file_name= fileName
+        self.file_folder_path = os.path.dirname(fileName)
+        print(self.file_folder_path)
         if fileName != "":
             self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
             self.playButton.setEnabled(True)
@@ -88,6 +100,9 @@ class VideoPlayer(QWidget):
             self.play()
         self.item_click_position_change(int(data[0][1]))
 
+    def show_in_explorer(self):
+        os.startfile(self.file_folder_path)
+        
     @QtCore.pyqtSlot(int)
     def item_click_position_change(self, frame_num: int):
         self.mediaPlayer.setPosition((int(frame_num) // 30) * 1000)

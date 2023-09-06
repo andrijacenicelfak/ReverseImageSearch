@@ -4,7 +4,7 @@ from PyQt5.QtGui import QIcon, QPalette
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-
+import subprocess
 
 class VideoPlayer(QMainWindow):
     def __init__(self):
@@ -16,7 +16,7 @@ class VideoPlayer(QMainWindow):
         p = self.palette()
         p.setColor(QPalette.Window, Qt.black)
         self.setPalette(p)
-
+        self.video_path = ""
         self.init_ui()
         self.show()
 
@@ -60,6 +60,9 @@ class VideoPlayer(QMainWindow):
         self.mediaPlayer.stateChanged.connect(self.mediastate_changed)
         self.mediaPlayer.positionChanged.connect(self.position_changed)
         self.mediaPlayer.durationChanged.connect(self.duration_changed)
+
+    def show_in_explorer(self):
+        subprocess.Popen(f'explorer /select,"{self.video_path}"')
 
     def open_file(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Open Video")
