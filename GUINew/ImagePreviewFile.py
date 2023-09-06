@@ -60,7 +60,7 @@ class ImagePreview(QWidget):
         self.image.setPixmap(self.px)
         self.image.setMinimumSize(int(width), int(height))
         self.image.setMaximumSize(int(width), int(height))
-        self.content_layout.addWidget(self.image)
+        self.content_layout.addWidget(self.image, stretch=1)
         self.content.setLayout(self.content_layout)
 
         self.layout_form.addWidget(self.content)
@@ -74,7 +74,7 @@ class ImagePreview(QWidget):
             self.lbl.setStyleSheet("")
             self.lbl.setMaximumSize(width, textHeight)
             self.lbl.setWordWrap(True)
-            self.content_layout.addWidget(self.lbl)
+            self.content_layout.addWidget(self.lbl, stretch=2)
 
         self.setMaximumSize(width, height + (textHeight if text_enabled else 0))
         self.setMinimumSize(width, height + (textHeight if text_enabled else 0))

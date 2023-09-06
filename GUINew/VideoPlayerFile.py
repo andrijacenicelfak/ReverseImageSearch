@@ -6,8 +6,9 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QCursor
 
+
 class VideoPlayer(QWidget):
-    def __init__(self, fileName="", data : list = None,parent=None, item_size = 200):
+    def __init__(self, fileName="", data: list = None, parent=None, item_size=200):
         super(VideoPlayer, self).__init__(parent)
 
         self.mediaPlayer = QMediaPlayer(None, QMediaPlayer.VideoSurface)
@@ -28,7 +29,7 @@ class VideoPlayer(QWidget):
         self.positionSlider.setRange(0, 0)
         self.positionSlider.sliderMoved.connect(self.setPosition)
         self.positionSlider.sliderPressed.connect(self.onSliderClicked)
-        
+
         self.statusBar = QStatusBar()
         self.statusBar.setFont(QFont("Noto Sans", 7))
         self.statusBar.setFixedHeight(14)
@@ -38,10 +39,10 @@ class VideoPlayer(QWidget):
         controlLayout.addWidget(self.playButton)
         controlLayout.addWidget(self.positionSlider)
 
-        #Adding all the video frames
+        # Adding all the video frames
 
         self.scroll_area = QScrollArea()
-        self.scroll_area.setContentsMargins(0,0,0,0)
+        self.scroll_area.setContentsMargins(0, 0, 0, 0)
         self.content_frames = QWidget()
         self.content_layout = QGridLayout()
         self.content_layout.setRowMinimumHeight(0, item_size)
@@ -50,24 +51,26 @@ class VideoPlayer(QWidget):
         self.old_resize_frames = self.resizeEvent
         self.scroll_area.resizeEvent = self.resize_frames
 
-        data.sort(key=lambda x : int(x[1]))
+        data.sort(key=lambda x: int(x[1]))
 
         for ed in enumerate(data):
             d = ed[1]
             i = ed[0]
             vpi = VideoPlayerItem(d[1], d[0], size=(item_size, item_size))
-            vpi.clicked.connect(self.item_click_position_change) 
-            self.content_layout.addWidget(vpi, i // self.collum_number, i % self.collum_number)
+            vpi.clicked.connect(self.item_click_position_change)
+            self.content_layout.addWidget(
+                vpi, i // self.collum_number, i % self.collum_number
+            )
 
         self.content_frames.setLayout(self.content_layout)
         self.scroll_area.setWidget(self.content_frames)
         self.scroll_area.setWidgetResizable(True)
 
         layout = QVBoxLayout()
-        layout.addWidget(videoWidget, stretch= 6)
-        layout.addLayout(controlLayout, stretch= 1)
-        layout.addWidget(self.statusBar, stretch= 2)
-        layout.addWidget(self.scroll_area, stretch= 3)
+        layout.addWidget(videoWidget, stretch=6)
+        layout.addLayout(controlLayout, stretch=1)
+        layout.addWidget(self.statusBar, stretch=2)
+        layout.addWidget(self.scroll_area, stretch=4)
 
         self.setLayout(layout)
 
@@ -77,17 +80,16 @@ class VideoPlayer(QWidget):
         self.mediaPlayer.durationChanged.connect(self.durationChanged)
         self.mediaPlayer.error.connect(self.handleError)
         self.statusBar.showMessage("Ready")
-        
-        if fileName != '':
-            self.mediaPlayer.setMedia(
-                    QMediaContent(QUrl.fromLocalFile(fileName)))
+
+        if fileName != "":
+            self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
             self.playButton.setEnabled(True)
             self.statusBar.showMessage(fileName)
             self.play()
         self.item_click_position_change(int(data[0][1]))
 
     @QtCore.pyqtSlot(int)
-    def item_click_position_change(self, frame_num : int):
+    def item_click_position_change(self, frame_num: int):
         self.mediaPlayer.setPosition((int(frame_num) // 30) * 1000)
 
     def resize_frames(self, event):
@@ -97,7 +99,7 @@ class VideoPlayer(QWidget):
         self.collum_number = max(self.scroll_area.width() // self.item_size, 1)
         if old_collum == self.collum_number:
             return
-        
+
         widgets = [
             (i, self.content_layout.itemAt(i).widget())
             for i in range(self.content_layout.count())
@@ -108,19 +110,22 @@ class VideoPlayer(QWidget):
                 self.content_layout.removeWidget(item.widget())
             else:
                 self.content_layout.removeItem(item)
-        
+
         for i, widget in widgets:
             self.content_layout.addWidget(
-            widget, i // self.collum_number, i % self.collum_number
+                widget, i // self.collum_number, i % self.collum_number
             )
 
     def abrir(self):
-        fileName, _ = QFileDialog.getOpenFileName(self, "Selecciona los mediose",
-                ".", "Video Files (*.mp4 *.flv *.ts *.mts *.avi)")
+        fileName, _ = QFileDialog.getOpenFileName(
+            self,
+            "Selecciona los mediose",
+            ".",
+            "Video Files (*.mp4 *.flv *.ts *.mts *.avi)",
+        )
 
-        if fileName != '':
-            self.mediaPlayer.setMedia(
-                    QMediaContent(QUrl.fromLocalFile(fileName)))
+        if fileName != "":
+            self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
             self.playButton.setEnabled(True)
             self.statusBar.showMessage(fileName)
             self.play()
@@ -129,16 +134,14 @@ class VideoPlayer(QWidget):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
             self.mediaPlayer.pause()
         else:
-            #self.mediaPlayer.setPosition(500)
+            # self.mediaPlayer.setPosition(500)
             self.mediaPlayer.play()
 
     def mediaStateChanged(self, state):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
-            self.playButton.setIcon(
-                    self.style().standardIcon(QStyle.SP_MediaPause))
+            self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         else:
-            self.playButton.setIcon(
-                    self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def positionChanged(self, position):
         self.positionSlider.setValue(position)
@@ -153,13 +156,14 @@ class VideoPlayer(QWidget):
         self.playButton.setEnabled(False)
         self.statusBar.showMessage("Error: " + self.mediaPlayer.errorString())
 
-
     def onSliderClicked(self):
-        click_position = QCursor.pos().x() - self.positionSlider.mapToGlobal(QPoint(0, 0)).x()
+        click_position = (
+            QCursor.pos().x() - self.positionSlider.mapToGlobal(QPoint(0, 0)).x()
+        )
         max_position = self.positionSlider.width()
         value = (click_position / max_position) * self.positionSlider.maximum()
         self.setPosition(value)
- 
+
     def closeEvent(self, event):
         self.mediaPlayer.stop()
         event.accept()
@@ -167,10 +171,11 @@ class VideoPlayer(QWidget):
     def closePlayer(self):
         self.mediaPlayer.stop()
 
+
 class VideoPlayerItem(QWidget):
     clicked = pyqtSignal(int)
 
-    def __init__(self, frame_num = 0, image : QPixmap = None, size = (200, 200)):
+    def __init__(self, frame_num=0, image: QPixmap = None, size=(200, 200)):
         super().__init__()
         self.frame_num = frame_num
         self.image_label = QLabel()
@@ -184,12 +189,14 @@ class VideoPlayerItem(QWidget):
         self.setMaximumHeight(size[1])
         self.setMinimumHeight(size[1])
         self.mouseDoubleClickEvent = self.double_click_event
-        self.setContentsMargins(0,0,0,0)
-        self.setStyleSheet('''
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setStyleSheet(
+            """
             QLabel:hover{
                 border: 5px solid #21476b;
             }
-        ''')
-    
+        """
+        )
+
     def double_click_event(self, event):
         self.clicked.emit(int(self.frame_num))
