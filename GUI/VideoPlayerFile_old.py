@@ -81,7 +81,6 @@ class VideoPlayer(QWidget):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
             
             self.mediaPlayer.pause()
-            print(self.mediaPlayer.position())
         else:
             #self.mediaPlayer.setPosition(500)
             self.mediaPlayer.play()
