@@ -15,8 +15,12 @@ from ImageAnalyzationModule.Vectorize import Vectorize
 
 from GUI.GUIFunctions import *
 
+HAS_THEME = False
+
 if __name__ == "__main__":
+        
     app = QApplication(sys.argv)
+
     ai = ImageAnalyzation(
         "yolov8s.pt",
         device="cuda",

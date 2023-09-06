@@ -5,8 +5,10 @@ class SearchParams:
                          containSameObjects = False,
                          confidenceCalculation = False,
                          magnitudeCalculation = False,
+                         textContext = False,
                          minObjConf = 0.5,
                          minObjWeight = 0.05,
+                         textContextWeight = 0.6,
                          selectedIndex = None,
                          imagePath = ".\\AppImages\\noimg.png"
                          ):
@@ -20,6 +22,8 @@ class SearchParams:
         self.minObjWeight = minObjWeight
         self.selectedIndex = selectedIndex
         self.imagePath = imagePath
+        self.textContext = textContext
+        self.textContextWeight = textContextWeight
         self.data = None
     
     def from_dict(self, dictionary):
@@ -34,6 +38,8 @@ class SearchParams:
         d["containSameObjects"] = self.containSameObjects
         d["magnitudeCalculation"] = self.magnitudeCalculation
         d["magnitudeCalculation"] = self.magnitudeCalculation
+        d["textContext"] = self.textContext
+        d["textContextWeight"] = self.textContextWeight
         d["minObjConf"] = self.minObjConf
         d["minObjWeight"] = self.minObjWeight
         return d

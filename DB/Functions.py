@@ -4,6 +4,8 @@ def get_image_flag(terms):
     flag0 = 0
     flag1 = 0
     for term in terms:
+        if term not in model_names:
+            continue
         i = model_names[term]
         if i < 40:
             x = 2**i

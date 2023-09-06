@@ -39,8 +39,10 @@ class SearchImageDialog(QDialog):
             self.image_preview = QWidget()
 
             self.image_label = QLabel(parent=self.image_preview)
+            self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.image_label.setStyleSheet("background-color: black")
             self.image = QPixmap(self.search_params.imagePath).scaled(
-                self.image_width, self.image_height
+                self.image_width, self.image_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation
             )
             self.image_label.setPixmap(self.image)
             self.image_label.setMaximumSize(self.image_width, self.image_height)
@@ -98,6 +100,11 @@ class SearchImageDialog(QDialog):
         self.mag_calc.stateChanged.connect(self.prams_change)
         self.settings_layout.addWidget(self.mag_calc)
 
+        self.text_context = QCheckBox("Use image text context", self.settings)
+        self.text_context.setChecked(self.search_params.textContext)
+        self.text_context.stateChanged.connect(self.prams_change)
+        self.settings_layout.addWidget(self.text_context)
+
         self.validator = QDoubleValidator()
         self.validator.setRange(0, 100, decimals=2)
 
@@ -116,6 +123,7 @@ class SearchImageDialog(QDialog):
         self.min_conf_widget.setLayout(self.min_conf_layout)
         self.settings_layout.addWidget(self.min_conf_widget)
 
+        # Min weight line edit
         self.min_weight_widget = QWidget()
         self.min_weight_layout = QHBoxLayout()
 
@@ -131,13 +139,32 @@ class SearchImageDialog(QDialog):
         self.min_weight_widget.setLayout(self.min_weight_layout)
         self.settings_layout.addWidget(self.min_weight_widget)
 
+        # text_context_weight
+        self.text_context_weight_widget = QWidget()
+        self.text_context_weight_widget_layout = QHBoxLayout()
+
+        self.text_context_label = QLabel("Text context weight")
+        self.text_context_weight_widget_layout.addWidget(self.text_context_label)
+
+        self.text_context_line = QLineEdit(
+            str(self.search_params.textContextWeight), parent=self.settings
+        )
+        self.text_context_line.setValidator(self.validator)
+        self.text_context_weight_widget_layout.addWidget(self.text_context_line)
+
+        self.text_context_weight_widget.setLayout(self.text_context_weight_widget_layout)
+        self.settings_layout.addWidget(self.text_context_weight_widget)
+
+        #Done
+
         self.okay_button = QPushButton("Okay")
         self.okay_button.clicked.connect(self.okay)
         self.settings_layout.addWidget(self.okay_button)
 
         self.settings.setLayout(self.settings_layout)
         self.main_layout.addWidget(self.settings)
-
+        self.update_disabled()
+        
     def load_settings(self):
         with open(".\\GUINew\\last_search.json", "r") as f:
             search_params_dict = json.load(fp=f)
@@ -147,6 +174,7 @@ class SearchImageDialog(QDialog):
     def okay(self):
         self.search_params.minObjConf = float(self.min_conf.text())
         self.search_params.minObjWeight = float(self.min_weight.text())
+        self.search_params.textContextWeight = float(self.text_context_line.text())
         with open(".\\GUINew\\last_search.json", "w") as f:
             json.dump(self.search_params.get_dict(), fp=f)
 
@@ -201,7 +229,9 @@ class SearchImageDialog(QDialog):
             index=self.search_params.selectedIndex,
         )
         self.bb_image_px = numpy_to_pixmap(self.bb_image)
-        self.image = self.bb_image_px.scaled(self.image_width, self.image_height)
+        self.image = self.bb_image_px.scaled(self.image_width, self.image_height, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setStyleSheet("background-color: black")
         self.image_label.setPixmap(self.image)
 
     def selection_change(self):
@@ -228,4 +258,8 @@ class SearchImageDialog(QDialog):
         self.search_params.containSameObjects = self.contain_same_objects.isChecked()
         self.search_params.confidenceCalculation = self.conf_calc.isChecked()
         self.search_params.magnitudeCalculation = self.mag_calc.isChecked()
+        self.search_params.textContext = self.text_context.isChecked()
+        self.update_disabled()
         return
+    def update_disabled(self):
+        self.text_context_line.setDisabled(not self.text_context.isChecked())
