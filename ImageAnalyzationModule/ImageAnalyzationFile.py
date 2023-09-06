@@ -437,8 +437,8 @@ class ImageAnalyzation:
         if containSameObjects and flag[2] != flag1[2]:
             return 0
 
-        if flag[2] == 0:
-            return 0
+        # if flag[2] == 0:
+        #     return 0
 
         objectComparison = 1
         if compareObjects:
@@ -626,7 +626,7 @@ class ImageAnalyzation:
         confidenceCalculation=False,
         magnitudeCalculation=False,
         classNameComparison=True,
-        scaleDown=True,
+        scaleDown=False,
         scale=(0.9, 10),
     ):
         if icd1.features is None or icd2.features is None:

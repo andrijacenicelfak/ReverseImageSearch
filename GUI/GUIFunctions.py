@@ -12,7 +12,6 @@ colors = [tuple(int(random.randrange(255)) for _ in range(3)) for _ in range(50)
 
 #Draw all rectangles or draw only selected indexes or draw one
 def drawClasses(imgData : ImageData, img, fontSize = 2.4, index = None):
-    print(f"index : {index}")
     if index is None:
         for i, oclass in enumerate((imgData.classes)):
             drawBoundingBox(image=img, boundingBox= oclass.boundingBox, index=i, className=oclass.className, fontSize=fontSize)
