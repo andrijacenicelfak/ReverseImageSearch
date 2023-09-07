@@ -180,12 +180,13 @@ class IndexFunction(QThread):
         # has to analyze files in the main process because the models are on the main process
         # and model inicialization and running the models seperatly on each process is expansive
         self.analyze_files(input_queue, num_files, save_queue)
+        print("File analysis done!")
         for p in processes:
             p.join()
-
+        print("Worker processes done!")
         for save_proc in save_processes:
             save_proc.join()
-
+        print("Save processes done!")
         end_time = time.time()
         print("Time to index : %.2fs" % (end_time - start_time,))
 

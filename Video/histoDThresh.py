@@ -75,52 +75,47 @@ def sum_video_all_mp(video_path, output_queue, num_of_proc = 4):
 
 def sum_video_all(video_path, output_queue, total_frames = -1, start_frame = 0, end_frame = -1):
     cap = cv2.VideoCapture(video_path)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
 
     if total_frames == -1:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if end_frame == -1:
         end_frame = total_frames
 
-    prev_frame = None
     prev_hist = None
     prev_sim = 0
 
     threshold = 0.08
     THRESHOLD_INC = 0.01
     THRESHOLD_DEC = 0.001
-    x = -1
-    current_frame = start_frame
-    while current_frame != end_frame:
+
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+    current_frame = start_frame-1
+    while current_frame < end_frame:
         ret, frame = cap.read()
         if not ret:
             break
-        x+=1
-        if x % 5 != 0:
-            continue
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        current_frame+=1
 
-        h1 = cv2.calcHist([gray_frame], [0], None, [128], [0, 256])
+        if current_frame % 10 != 0:
+            continue
+        h1 = cv2.calcHist([cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)], [0], None, [128], [0, 256])
 
         h1 = cv2.normalize(h1, h1).flatten()
 
-        if prev_frame is not None and prev_hist is not None:
+        if prev_hist is not None:
             similarity = cv2.compareHist(
                 h1, prev_hist, cv2.HISTCMP_BHATTACHARYYA
             )
-
             if similarity > threshold:
                 if prev_sim < threshold:
                     threshold += THRESHOLD_INC
-                    output_queue.put(FrameData(frame=frame, frame_number=x, video_path=video_path))
+                    output_queue.put(FrameData(frame=frame, frame_number=current_frame, video_path=video_path))
             else:
                 threshold -= THRESHOLD_DEC
 
             prev_sim = similarity
 
-        prev_frame = frame
         prev_hist = h1
-        current_frame += 1
     cap.release()
 
 def summ_video_parallel(video_path: str, queue, num_of_processes: int, pool: mp.Pool):
