@@ -55,13 +55,14 @@ class App(QMainWindow):
         vec: Vectorize,
     ):
         super().__init__()
+        self.setWindowIcon(QIcon(".\AppImages\search.png"))
+        self.setWindowTitle("Kimaris")
         self.video_player = None
         #
         self.index_worker = None
         qInstallMessageHandler(handle)
 
         #
-        self.setWindowTitle("App")
         self.content = QWidget()
         self.image_analyzation = image_analyzation
         self.img_db = img_db

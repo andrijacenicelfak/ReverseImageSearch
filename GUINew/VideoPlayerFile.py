@@ -12,7 +12,8 @@ from PyQt5.QtGui import QCursor
 class VideoPlayer(QWidget):
     def __init__(self, fileName="", data: list = None, parent=None, item_size=200, start_frame= 0):
         super(VideoPlayer, self).__init__(parent)
-
+        self.setWindowIcon(QIcon(".\AppImages\search.png"))
+        self.setWindowTitle("Kimaris : Video Player")
         self.mediaPlayer = QMediaPlayer(None, QMediaPlayer.VideoSurface)
 
         self.collum_number = self.width() // item_size

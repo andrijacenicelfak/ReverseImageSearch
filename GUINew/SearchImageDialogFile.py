@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 from GUINew.SearchImageFile import *
 from GUINew.SearchParamsFile import SearchParams
 
@@ -22,7 +23,8 @@ class SearchImageDialog(QDialog):
     ):
         super().__init__()
         self.seleted_object = -1
-        self.setWindowTitle("Select image" if not options_only else "Settings")
+        self.setWindowIcon(QIcon(".\AppImages\search.png"))
+        self.setWindowTitle("Kimaris : " + ("Select image" if not options_only else "Settings"))
         self.image_analyzation = image_analyzation
         self.has_image = False
         self.image_width = image_width
