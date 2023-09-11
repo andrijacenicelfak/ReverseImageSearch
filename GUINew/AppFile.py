@@ -269,7 +269,7 @@ class App(QMainWindow):
             if search_params.textContext:
                 comp_2 = self.vec.compare_vectors(img_data.vector, img.vector)
                 conf = (1 - search_params.textContextWeight) * conf + search_params.textContextWeight * comp_2
-
+            img.similarity = conf
             image_list.append(DisplayItem(img.orgImage, conf, img))
 
         av = image_list.average()
@@ -295,12 +295,12 @@ class App(QMainWindow):
     def file_exit_action(self):
         QApplication.quit()
 
-    def start_video_player(self, video_path, data):
+    def start_video_player(self, video_path, data, frame):
         # print(data)
         if self.video_player:
             self.video_player.closePlayer()
             self.video_player.deleteLater()
-        self.video_player = VideoPlayer(fileName=video_path, data=data)
+        self.video_player = VideoPlayer(fileName=video_path, data=data, start_frame = frame)
         self.video_player.setWindowTitle("Player")
         self.video_player.resize(800, 800)
         self.video_player.show()

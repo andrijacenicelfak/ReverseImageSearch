@@ -30,13 +30,11 @@ class FileExplorer:
         return (newImages, delImages)
     
     def saveImages(self, images, append = False):
-        #TODO database
         with open("images.txt",'a' if append else 'w') as f:
             for i in images:
                 f.write("%s\n" % i)
         return
     def loadImages(self):
-        #TODO database
         if not os.path.isfile("images.txt"):
             return
         with open("images.txt", 'r') as f:

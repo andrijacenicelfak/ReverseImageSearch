@@ -11,7 +11,7 @@ from GUI.GUIFunctions import *
 
 
 class ImagePreview(QWidget):
-    start_video_player = pyqtSignal(str, list)
+    start_video_player = pyqtSignal(str, list, int)
 
     def __init__(
         self,
@@ -26,6 +26,7 @@ class ImagePreview(QWidget):
         frame_num=-1,
         video_path=None,
         classes: str = "",
+        similarity = 0
     ) -> None:
         super().__init__()
         self.setStyleSheet("background-color: #EFEFEF;")
@@ -76,20 +77,21 @@ class ImagePreview(QWidget):
         self.is_video = is_video
         self.video_path = video_path
         self.frame_list = []
-        self.add_frame(self.px, frame_num)
+        self.add_frame(self.px, frame_num, similarity=similarity)
         self.setMouseTracking(True)
         self.mouseDoubleClickEvent = self.doubleClicked
 
-    def add_frame(self, img, frame_num):
+    def add_frame(self, img, frame_num, similarity):
         if not self.is_video:
             return
-        self.frame_list.append((img, frame_num))
+        self.frame_list.append((img, frame_num, similarity))
 
     def doubleClicked(self, event):
         if not self.is_video:
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.image_path))
         else:
-            self.start_video_player.emit(self.video_path, self.frame_list)
+            maxe = max(self.frame_list, key=lambda x: x[2])
+            self.start_video_player.emit(self.video_path, self.frame_list, int(maxe[1]))
     
     def enterEvent(self, a0):
         super().enterEvent(a0)

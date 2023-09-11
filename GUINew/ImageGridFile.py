@@ -18,7 +18,7 @@ IMAGE_SIZE = 200
 
 
 class ImageGrid(QScrollArea):
-    start_video_player = pyqtSignal(str, list)
+    start_video_player = pyqtSignal(str, list, int)
 
     def __init__(self, item_size=200, text_enabled=True, loading_percent_callback=None):
         super().__init__()
@@ -38,9 +38,9 @@ class ImageGrid(QScrollArea):
         self.resizeEvent = self.on_resize
         self.loading_percent_callback = loading_percent_callback
 
-    @QtCore.pyqtSlot(str, list)
-    def start_video_player_call(self, path:str, data:list):
-        self.start_video_player.emit(path, data)
+    @QtCore.pyqtSlot(str, list, int)
+    def start_video_player_call(self, path:str, data:list, frame:int):
+        self.start_video_player.emit(path, data, frame)
 
     def on_resize(self, event):
         self.old_resize(event)
@@ -103,7 +103,7 @@ class ImageGrid(QScrollArea):
         )
 
     def add_to_grid(self, data : [tuple]):        
-        for image, desc, path, classes in data:
+        for image, desc, path, classes, similarity in data:
             video = format_if_video_path(path)
             if video[1] is None:
                 i = self.layout_gird.count()
@@ -112,10 +112,10 @@ class ImageGrid(QScrollArea):
                     ip, i // self.max_collum_count, i % self.max_collum_count
                 )
             elif video[0] in self.video_dictonary:
-                self.video_dictonary[video[0]].add_frame(image, video[1])
+                self.video_dictonary[video[0]].add_frame(image, video[1], similarity)
             else:
                 i = self.layout_gird.count()
-                ip = ImagePreview(desc, path, image, is_video=True, frame_num=video[1], video_path = video[0], classes = classes)
+                ip = ImagePreview(desc, path, image, is_video=True, frame_num=video[1], video_path = video[0], classes = classes, similarity = similarity)
                 self.layout_gird.addWidget(
                     ip, i // self.max_collum_count, i % self.max_collum_count
                 )
@@ -165,7 +165,7 @@ class ImageAddWorker(QThread):
                 continue
             
             px = px.scaled(IMAGE_SIZE, IMAGE_SIZE, aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio, transformMode=Qt.TransformationMode.FastTransformation)
-            data_emit.append((px, d.description, d.orgImage, classes))
+            data_emit.append((px, d.description, d.orgImage, classes, d.similarity))
             if i % 5 == 0:
                 self.add.emit(data_emit)
                 data_emit = []
