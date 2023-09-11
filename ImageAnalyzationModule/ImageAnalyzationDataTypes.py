@@ -68,7 +68,7 @@ class ImageData:
         self.vector=vector
         self.description=description
         self.histogram = histogram
-        self.similarty = similarity
+        self.similarity = similarity
 
     # def __eq__(self, other) -> bool:
     #     return self.classes == other.classes and self.features == other.features and self.orgImage == other.orgImage
