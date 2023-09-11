@@ -141,12 +141,12 @@ class ImageDB:
         return image_objects.values()#[DBStruct(termName, x[1], pickle.loads(x[2])) for x in rows]
     
     def search_by_caption(self, query_caption_vector):
-        print("TEST SEARCH_BY_CAPTIOn")
+        CAPTION_THRESHOLD = 0.5
         self.con.create_function("cosine_sim", 2, cosine_similarity_sql)
-        self.cursor.execute("""
+        self.cursor.execute(f"""
                     SELECT i.*, o.* FROM images i
                     JOIN objects o ON i.id = o.image_id
-                    WHERE CAST(cosine_sim(i.caption_vec, ?) AS REAL) > CAST(0.5 AS REAL)
+                    WHERE CAST(cosine_sim(i.caption_vec, ?) AS REAL) > CAST({CAPTION_THRESHOLD} AS REAL)
                 """, (pickle.dumps(query_caption_vector), ))
 
         rows = self.cursor.fetchall()        
