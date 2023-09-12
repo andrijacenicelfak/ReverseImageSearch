@@ -44,10 +44,14 @@ class VideoPlayer(QWidget):
         self.statusBar.setFont(QFont("Noto Sans", 7))
         self.statusBar.setFixedHeight(20)
 
+        self.duration = QLabel()
+            
+        self.duration.setText("00:00/00:00")
         controlLayout = QHBoxLayout()
         controlLayout.setContentsMargins(0, 0, 0, 0)
         controlLayout.addWidget(self.playButton)
         controlLayout.addWidget(self.positionSlider)
+        controlLayout.addWidget(self.duration)
         controlLayout.addWidget(self.open_folder)
 
         # Adding all the video frames
@@ -152,6 +156,13 @@ class VideoPlayer(QWidget):
 
     def positionChanged(self, position):
         self.positionSlider.setValue(position)
+        duration_sec = self.mediaPlayer.duration()//1000
+        duration_min = duration_sec // 60
+        duration_sec = duration_sec % 60
+        position = position // 1000
+        pos_min = position // 60
+        pos_sec = position % 60
+        self.duration.setText(f"{pos_min}:{pos_sec}/{duration_min}:{duration_sec}")
 
     def durationChanged(self, duration):
         self.positionSlider.setRange(0, duration)
