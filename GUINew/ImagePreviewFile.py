@@ -65,7 +65,7 @@ class ImagePreview(QWidget):
         self.setToolTip(f"Decription : {description}\nClasses : {classes}")
 
         if text_enabled:
-            self.lbl = QLabel(parent=self, text=description)
+            self.lbl = QLabel(parent=self, text=("" if not is_video else "Video : ") + description)
             self.lbl.setStyleSheet("")
             self.lbl.setMaximumSize(width, textHeight)
             self.lbl.setWordWrap(True)

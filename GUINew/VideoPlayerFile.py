@@ -3,10 +3,12 @@ import subprocess
 from PyQt5.QtGui import *
 from PyQt5.QtCore import QDir, Qt, QUrl, QSize, QPoint, pyqtSignal
 import PyQt5.QtCore as QtCore
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QVideoProbe
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QCursor
+import cv2
+
 
 
 class VideoPlayer(QWidget):
@@ -99,10 +101,14 @@ class VideoPlayer(QWidget):
         self.file_name = fileName
         self.file_folder_path = os.path.dirname(fileName)
         print(self.file_folder_path)
+        self.fps = None
         if fileName != "":
             self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(fileName)))
             self.playButton.setEnabled(True)
             self.statusBar.showMessage(fileName)
+            cam = cv2.VideoCapture(fileName)
+            self.fps = int(cam.get(cv2.CAP_PROP_FPS))
+
             self.play()
         self.item_click_position_change(int(data[0][1]) if start_frame == 0 else start_frame)
         self.resize_frames(None)
@@ -113,7 +119,8 @@ class VideoPlayer(QWidget):
 
     @QtCore.pyqtSlot(int)
     def item_click_position_change(self, frame_num: int):
-        self.mediaPlayer.setPosition((int(frame_num) // 30) * 1000)
+        fps = int(self.fps if self.fps is not None and self.fps > 0 else 30)
+        self.mediaPlayer.setPosition((int(frame_num) // fps) * 1000)
 
     def resize_frames(self, event):
         if event is not None:
@@ -188,7 +195,6 @@ class VideoPlayer(QWidget):
 
     def closePlayer(self):
         self.mediaPlayer.stop()
-
 
 class VideoPlayerItem(QWidget):
     clicked = pyqtSignal(int)
