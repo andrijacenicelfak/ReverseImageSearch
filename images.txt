@@ -1,4 +1,0 @@
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\1.jpg
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\2.jpg
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\3.jpg
-C:\Users\best_intern\Documents\dev\ImageClassification\YOLOv8\imgs\93.jpg
